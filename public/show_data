@@ -1,0 +1,71 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Hiển thị dữ liệu từ Supabase</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <style>
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+  </style>
+</head>
+<body>
+  <h2>Dữ liệu từ bảng inventory_data</h2>
+  <table id="dataTable">
+    <thead>
+      <tr>
+        <th>SEQ</th>
+        <th>ITEM NO</th>
+        <th>REV.</th>
+        <th>SUBINVENTORY</th>
+        <th>LOCATOR</th>
+        <th>ON HAND</th>
+        <th>UOM</th>
+        <th>Site</th>
+        <th>Demand</th>
+        <th>LOT NUMBER</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody">
+    </tbody>
+  </table>
+
+  <script>
+    const supabaseUrl = 'https://chjqassbtcqthueeddou.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoanFhc3NidGNxdGh1ZWVkZG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzY2OTgsImV4cCI6MjA3NTcxMjY5OH0.FbWGSw9sqUkb2_ppErN4QTFGy1Cho-HX4XbR5_-KB0I';
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+    async function fetchData() {
+      const { data, error } = await supabase.from('inventory_data').select('*');
+      if (error) {
+        console.error('Lỗi khi lấy dữ liệu:', error);
+        return;
+      }
+
+      const tableBody = document.getElementById('tableBody');
+      tableBody.innerHTML = '';
+
+      data.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${row.seq || ''}</td>
+          <td>${row.item_no || ''}</td>
+          <td>${row.rev || ''}</td>
+          <td>${row.subinventory || ''}</td>
+          <td>${row.locator || ''}</td>
+          <td>${row.on_hand || ''}</td>
+          <td>${row.uom || ''}</td>
+          <td>${row.site || ''}</td>
+          <td>${row.demand || ''}</td>
+          <td>${row.lot_number || ''}</td>
+        `;
+        tableBody.appendChild(tr);
+      });
+    }
+
+    window.onload = fetchData;
+  </script>
+</body>
+</html>
