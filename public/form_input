@@ -1,1 +1,45 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Form Nhập Liệu Kho</title>
+  https://cdn.jsdelivr.net/npm/@supabase/supabase-js</script>
+</head>
+<body>
+  <h2>Form Nhập Liệu Kho</h2>
+  <form id="dataForm">
+    <label>Mã hàng: <input type="text" name="ma_hang" required /></label><br />
+    <label>Tên hàng: <input type="text" name="ten_hang" required /></label><br />
+    <label>Số lượng: <input type="number" name="so_luong" required /></label><br />
+    <label>Vị trí: <input type="text" name="vi_tri" required /></label><br />
+    <label>Ngày nhập: <input type="date" name="ngay_nhap" required /></label><br />
+    <label>Ghi chú: <input type="text" name="ghi_chu" /></label><br />
+    <button type="submit">Gửi dữ liệu</button>
+  </form>
 
+  <script>
+    const supabaseUrl = 'https://chjqassbtcqthueeddou.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoanFhc3NidGNxdGh1ZWVkZG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzY2OTgsImV4cCI6MjA3NTcxMjY5OH0.FbWGSw9sqUkb2_ppErN4QTFGy1Cho-HX4XbR5_-KB0I';
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+    const form = document.getElementById('dataForm');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
+
+      const { error } = await supabase
+        .from('input_data')
+        .insert([data]);
+
+      if (error) {
+        alert('Lỗi khi gửi dữ liệu: ' + error.message);
+      } else {
+        alert('Dữ liệu đã được gửi thành công!');
+        form.reset();
+      }
+    });
+  </script>
+</body>
+</html>
