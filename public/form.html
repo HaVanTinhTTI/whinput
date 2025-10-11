@@ -1,19 +1,31 @@
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <title>Form Nhập Liệu Kho</title>
-  https://cdn.jsdelivr.net/npm/@supabase/supabase-js</script>
+  <meta charset="UTF-8">
+  <title>Form Nhập Liệu - input_data</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 </head>
 <body>
-  <h2>Form Nhập Liệu Kho</h2>
+  <h2>Form Nhập Liệu - input_data</h2>
   <form id="dataForm">
-    <label>Mã hàng: <input type="text" name="ma_hang" required /></label><br />
-    <label>Tên hàng: <input type="text" name="ten_hang" required /></label><br />
-    <label>Số lượng: <input type="number" name="so_luong" required /></label><br />
-    <label>Vị trí: <input type="text" name="vi_tri" required /></label><br />
-    <label>Ngày nhập: <input type="date" name="ngay_nhap" required /></label><br />
-    <label>Ghi chú: <input type="text" name="ghi_chu" /></label><br />
+    <label>BU: <input type="text" name="BU" required></label><br>
+    <label>Seq: <input type="number" name="Seq" required></label><br>
+    <label>Submitted Date: <input type="date" name="SubmittedDate" required></label><br>
+    <label>Item Code: <input type="text" name="ItemCode" required></label><br>
+    <label>Revision: <input type="text" name="Revision"></label><br>
+    <label>Quantity: <input type="number" name="Quantity" required></label><br>
+    <label>Responsible Vendor Name: <input type="text" name="ResponsibleVendorName"></label><br>
+    <label>SQE Comments: <input type="text" name="SQE_Comments"></label><br>
+    <label>MR Reference No: <input type="text" name="MR_Reference_No"></label><br>
+    <label>SF Number: <input type="text" name="SF_Number"></label><br>
+    <label>LOCATOR: <input type="text" name="LOCATOR"></label><br>
+    <label>Rút mẫu: <input type="checkbox" name="Rut_mau"></label><br>
+    <label>Pallet ID: <input type="text" name="Pallet_ID"></label><br>
+    <label>Date receipt: <input type="date" name="Date_receipt"></label><br>
+    <label>Team deliver: <input type="text" name="Team_deliver"></label><br>
+    <label>Total Pallet: <input type="number" name="Total_Pallet"></label><br>
+    <label>Batch Scrap: <input type="text" name="Batch_Scrap"></label><br>
     <button type="submit">Gửi dữ liệu</button>
   </form>
 
@@ -25,18 +37,18 @@
     const form = document.getElementById('dataForm');
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-
       const formData = new FormData(form);
       const data = Object.fromEntries(formData.entries());
+      data.Rut_mau = formData.get('Rut_mau') === 'on';
+      data.Seq = parseInt(data.Seq);
+      data.Quantity = parseInt(data.Quantity);
+      data.Total_Pallet = parseInt(data.Total_Pallet);
 
-      const { error } = await supabase
-        .from('input_data')
-        .insert([data]);
-
+      const { error } = await supabase.from('input_data').insert([data]);
       if (error) {
-        alert('Lỗi khi gửi dữ liệu: ' + error.message);
+        alert('Lỗi: ' + error.message);
       } else {
-        alert('Dữ liệu đã được gửi thành công!');
+        alert('Gửi dữ liệu thành công!');
         form.reset();
       }
     });
