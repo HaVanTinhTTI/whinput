@@ -1,35 +1,37 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
   <title>Form Nhập Liệu - input_data</title>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 </head>
 <body>
   <h2>Form Nhập Liệu - input_data</h2>
   <form id="dataForm">
-    <label>BU: <input type="text" name="BU" required></label><br>
-    <label>Seq: <input type="number" name="Seq" required></label><br>
-    <label>Submitted Date: <input type="date" name="SubmittedDate" required></label><br>
-    <label>Item Code: <input type="text" name="ItemCode" required></label><br>
-    <label>Revision: <input type="text" name="Revision"></label><br>
-    <label>Quantity: <input type="number" name="Quantity" required></label><br>
-    <label>Responsible Vendor Name: <input type="text" name="ResponsibleVendorName"></label><br>
-    <label>SQE Comments: <input type="text" name="SQE_Comments"></label><br>
-    <label>MR Reference No: <input type="text" name="MR_Reference_No"></label><br>
-    <label>SF Number: <input type="text" name="SF_Number"></label><br>
-    <label>LOCATOR: <input type="text" name="LOCATOR"></label><br>
-    <label>Rút mẫu: <input type="checkbox" name="Rut_mau"></label><br>
-    <label>Pallet ID: <input type="text" name="Pallet_ID"></label><br>
-    <label>Date receipt: <input type="date" name="Date_receipt"></label><br>
-    <label>Team deliver: <input type="text" name="Team_deliver"></label><br>
-    <label>Total Pallet: <input type="number" name="Total_Pallet"></label><br>
-    <label>Batch Scrap: <input type="text" name="Batch_Scrap"></label><br>
+    <!-- Các trường nhập liệu -->
+    <label>BU: <input type="text" name="bu" required></label><br>
+    <label>Seq: <input type="number" name="seq" required></label><br>
+    <label>Submitted Date: <input type="date" name="submitteddate" required></label><br>
+    <label>Item Code: <input type="text" name="itemcode" required></label><br>
+    <label>Revision: <input type="text" name="revision"></label><br>
+    <label>Quantity: <input type="number" name="quantity" required></label><br>
+    <label>Responsible Vendor Name: <input type="text" name="responsiblevendorname"></label><br>
+    <label>SQE Comments: <input type="text" name="sqe_comments"></label><br>
+    <label>MR Reference No: <input type="text" name="mr_reference_no"></label><br>
+    <label>SF Number: <input type="text" name="sf_number"></label><br>
+    <label>LOCATOR: <input type="text" name="locator"></label><br>
+    <label>Rút mẫu: <input type="checkbox" name="rut_mau"></label><br>
+    <label>Pallet ID: <input type="text" name="pallet_id"></label><br>
+    <label>Date receipt: <input type="date" name="date_receipt"></label><br>
+    <label>Team deliver: <input type="text" name="team_deliver"></label><br>
+    <label>Total Pallet: <input type="number" name="total_pallet"></label><br>
+    <label>Batch Scrap: <input type="text" name="batch_scrap"></label><br>
     <button type="submit">Gửi dữ liệu</button>
   </form>
 
+  <!-- Đặt script Supabase trước -->
+  https://cdn.jsdelivr.net/npm/@supabase/supabase-js</script>
+
+  <!-- Sau đó mới dùng biến supabase -->
   <script>
     const supabaseUrl = 'https://chjqassbtcqthueeddou.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoanFhc3NidGNxdGh1ZWVkZG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzY2OTgsImV4cCI6MjA3NTcxMjY5OH0.FbWGSw9sqUkb2_ppErN4QTFGy1Cho-HX4XbR5_-KB0I';
@@ -40,10 +42,10 @@
       e.preventDefault();
       const formData = new FormData(form);
       const data = Object.fromEntries(formData.entries());
-      data.Rut_mau = formData.get('Rut_mau') === 'on';
-      data.Seq = parseInt(data.Seq);
-      data.Quantity = parseInt(data.Quantity);
-      data.Total_Pallet = parseInt(data.Total_Pallet);
+      data.rut_mau = formData.get('rut_mau') === 'on';
+      data.seq = parseInt(data.seq);
+      data.quantity = parseInt(data.quantity);
+      data.total_pallet = parseInt(data.total_pallet);
 
       console.log("Dữ liệu gửi:", data);
 
