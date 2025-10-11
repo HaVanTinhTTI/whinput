@@ -1,30 +1,62 @@
 
-<script>
-  const supabaseUrl = 'https://chjqassbtcqthueeddou.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoanFhc3NidGNxdGh1ZWVkZG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzY2OTgsImV4cCI6MjA3NTcxMjY5OH0.FbWGSw9sqUkb2_ppErN4QTFGy1Cho-HX4XbR5_-KB0I';
-  const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Form Nhập Liệu - input_data</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+</head>
+<body>
+  <h2>Form Nhập Liệu - input_data</h2>
+  <form id="dataForm">
+    <label>BU: <input type="text" name="BU" required></label><br>
+    <label>Seq: <input type="number" name="Seq" required></label><br>
+    <label>Submitted Date: <input type="date" name="SubmittedDate" required></label><br>
+    <label>Item Code: <input type="text" name="ItemCode" required></label><br>
+    <label>Revision: <input type="text" name="Revision"></label><br>
+    <label>Quantity: <input type="number" name="Quantity" required></label><br>
+    <label>Responsible Vendor Name: <input type="text" name="ResponsibleVendorName"></label><br>
+    <label>SQE Comments: <input type="text" name="SQE_Comments"></label><br>
+    <label>MR Reference No: <input type="text" name="MR_Reference_No"></label><br>
+    <label>SF Number: <input type="text" name="SF_Number"></label><br>
+    <label>LOCATOR: <input type="text" name="LOCATOR"></label><br>
+    <label>Rút mẫu: <input type="checkbox" name="Rut_mau"></label><br>
+    <label>Pallet ID: <input type="text" name="Pallet_ID"></label><br>
+    <label>Date receipt: <input type="date" name="Date_receipt"></label><br>
+    <label>Team deliver: <input type="text" name="Team_deliver"></label><br>
+    <label>Total Pallet: <input type="number" name="Total_Pallet"></label><br>
+    <label>Batch Scrap: <input type="text" name="Batch_Scrap"></label><br>
+    <button type="submit">Gửi dữ liệu</button>
+  </form>
 
-  const form = document.getElementById('dataForm');
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
-    data.Rut_mau = formData.get('Rut_mau') === 'on';
-    data.Seq = parseInt(data.Seq);
-    data.Quantity = parseInt(data.Quantity);
-    data.Total_Pallet = parseInt(data.Total_Pallet);
+  <script>
+    const supabaseUrl = 'https://chjqassbtcqthueeddou.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoanFhc3NidGNxdGh1ZWVkZG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzY2OTgsImV4cCI6MjA3NTcxMjY5OH0.FbWGSw9sqUkb2_ppErN4QTFGy1Cho-HX4XbR5_-KB0I';
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-    console.log("Dữ liệu gửi:", data); // ✅ In ra dữ liệu gửi
+    const form = document.getElementById('dataForm');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
+      data.Rut_mau = formData.get('Rut_mau') === 'on';
+      data.Seq = parseInt(data.Seq);
+      data.Quantity = parseInt(data.Quantity);
+      data.Total_Pallet = parseInt(data.Total_Pallet);
 
-    const { data: result, error } = await supabase.from('input_data').insert([data]);
+      console.log("Dữ liệu gửi:", data);
 
-    if (error) {
-      console.error("Lỗi Supabase:", error); // ✅ In lỗi chi tiết
-      alert('Lỗi: ' + error.message);
-    } else {
-      console.log("Kết quả Supabase:", result); // ✅ In kết quả trả về
-      alert('Gửi dữ liệu thành công!');
-      form.reset();
-    }
-  });
-</script>
+      const { data: result, error } = await supabase.from('input_data').insert([data]);
+
+      if (error) {
+        console.error("Lỗi Supabase:", error);
+        alert('Lỗi: ' + error.message);
+      } else {
+        console.log("Kết quả Supabase:", result);
+        alert('Gửi dữ liệu thành công!');
+        form.reset();
+      }
+    });
+  </script>
+</body>
+</html>
