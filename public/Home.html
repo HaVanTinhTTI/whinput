@@ -1,68 +1,115 @@
-
 <!DOCTYPE html>
-<html lang="vi">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>Quản Lý Kiểm Kê Kho</title>
-  <link rel="stylesheet" href="httpscss/jquery.dataTables.min.css
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h1 { text-align: center; }
-    table { width: 100%; }
-  </style>
+  <title>Upload & Export Inventory Data</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 </head>
 <body>
+  <h2>Upload Inventory Excel File</h2>
+  <input type="file" id="excelFile" />
+  <button onclick="uploadExcel()">Upload</button>
 
-  <h1>Warehouse 2nd Count</h1>
+  <h2>Export Filtered Inventory Data</h2>
+  <label for="filterSite">Site:</label>
+	<select id="filterSite">
+  <option value="OP1">OP1</option>
+  <option value="OP2">OP2</option>
+  <option value="OP3">OP3</option>
+  <option value="OP4">OP4</option>
+  <option value="OP5">OP5</option>
+	</select>
+<label>Subinventory: <input type="text" id="filterSubinventory" /></label>
+  <label>Demand: <input type="text" id="filterDemand" /></label>
+  <button onclick="exportData()">Export</button>
 
-  <table id="bangKiemKe" class="display">
-    <thead>
-      <tr>
-        <th>Item No.</th>
-        <th>Revision</th>
-        <th>Sub Inventory</th>
-        <th>Locator</th>
-        <th>Lot</th>
-        <th>Approval Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      <!-- Dữ liệu mẫu -->
-      <tr>
-        <td>108903025</td>
-        <td>01</td>
-        <td>TNS-FG</td>
-        <td>D28-FG-A05</td>
-        <td>2025_108903025_4_CPT_PMC15</td>
-        <td>Not Submit</td>
-      </tr>
-      <tr>
-        <td>108903026</td>
-        <td>01</td>
-        <td>TNS-FG</td>
-        <td>D28-FG-A06</td>
-        <td>2025_108903026_4_CPT_PMC15</td>
-        <td>Not Submit</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <script/code.jquery.com/jquery-3.7.0.min.js</script>
-  <script src="atatables.net/1.13.6/js/jquery.dataTables.min.js</script>
   <script>
-    $(document).ready(function () {
-      $('#bangKiemKe').DataTable({
-        dom: 'Bfrtip',
-        buttons: ['copy', 'csv', 'excel', 'pdf', 'print']
-      });
-    });
+    const { createClient } = supabase;
+    const client = createClient(
+      'https://chjqassbtcqthueeddou.supabase.co,
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoanFhc3NidGNxdGh1ZWVkZG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzY2OTgsImV4cCI6MjA3NTcxMjY5OH0.FbWGSw9sqUkb2_ppErN4QTFGy1Cho-HX4XbR5_-KB0I'
+    );
 
-    // Kết nối Supabase (giả lập)
-    // const supabase = createClient('https://your-project.supabase.co', 'public-anon-key');
-    // supabase.from('inventory').select('*').then(({ data }) => {
-    //   // Gắn dữ liệu vào bảng
-    // });
+    async function uploadExcel() {
+      const file = document.getElementById('excelFile').files[0];
+      if (!file) {
+        alert('Vui lòng chọn file Excel trước khi upload.');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(sheet, { defval: null });
+
+          const mappedData = json.map(row => {
+            const record = {
+              seq: row['SEQ'],
+              item_no: row['ITEM NO'],
+              rev: row['REV.'],
+              subinventory: row['SUBINVENTORY'],
+              locator: row['LOCATOR'],
+              on_hand: row['ON HAND'],
+              uom: row['UOM'],
+              site: row['Site'] || row['Site'],
+              demand: row['Demand']
+            };
+            if (row['LOT NUMBER'] !== null && row['LOT NUMBER'] !== undefined) {
+              record.lot_number = row['LOT NUMBER'];
+            }
+            return record;
+          });
+
+          const { error } = await client
+            .from('inventory_data')
+            .insert(mappedData);
+
+          if (error) {
+            alert('Lỗi: ' + error.message);
+            console.error(error);
+          } else {
+            alert('Upload thành công!');
+          }
+        } catch (err) {
+          console.error('Lỗi xử lý file:', err);
+          alert('Đã xảy ra lỗi khi xử lý file: ' + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    async function exportData() {
+      const site = document.getElementById('filterSite').value.trim();
+      const subinventory = document.getElementById('filterSubinventory').value.trim();
+      const demand = document.getElementById('filterDemand').value.trim();
+
+      let query = client.from('inventory_data').select('*');
+
+      if (site) query = query.eq('site', site);
+      if (subinventory) query = query.eq('subinventory', subinventory);
+      if (demand) query = query.eq('demand', demand);
+
+      try {
+        const { data, error } = await query;
+
+        if (error) {
+          alert('Lỗi khi lấy dữ liệu: ' + error.message);
+          return;
+        }
+
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'FilteredInventory');
+        XLSX.writeFile(workbook, 'filtered_inventory_export.xlsx');
+      } catch (err) {
+        console.error('Lỗi export:', err);
+        alert('Đã xảy ra lỗi khi export dữ liệu.');
+      }
+    }
   </script>
-
 </body>
 </html>
