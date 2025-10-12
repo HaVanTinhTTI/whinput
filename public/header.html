@@ -80,16 +80,35 @@
 }
 
 /* ===== PAGE CONTENT ===== */
+  /* Trigger zone bên trái để hover mở menu */
+.sidebar-trigger {
+  position: fixed;
+  top: 60px;              /* ngay dưới header */
+  left: 0;
+  width: 25px;            /* vùng hover rộng hơn dễ dùng */
+  height: calc(100% - 60px);
+  z-index: 999;
+  background: transparent;
+}
+
+/* Nội dung trang chính */
 #page-content {
-  margin-top: 80px;
-  margin-left: 0;
+  position: relative;
   padding: 24px;
-  transition: filter 0.3s ease;
+  margin-top: 80px;       /* chừa header cố định */
+  margin-left: 25px;      /* chừa vùng hover, tránh dính logo */
   background: #f9f9f9;
   min-height: calc(100vh - 80px);
   box-sizing: border-box;
+  transition: filter 0.3s ease;
+  z-index: 1;
 }
 
+/* Khi sidebar mở hoặc hover trigger → làm mờ nhẹ nội dung */
+.sidebar:hover ~ #page-content,
+.sidebar-trigger:hover ~ #page-content {
+  filter: brightness(0.95);
+}
 /* Khi sidebar mở, làm mờ nhẹ nội dung */
 .sidebar:hover ~ #page-content,
 .sidebar-trigger:hover ~ #page-content {
