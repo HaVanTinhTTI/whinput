@@ -100,6 +100,16 @@
           <input id="formNoInput" class="input" placeholder="Nhập / scan Form No (để trống = xem tất cả)" list="formList" />
           <datalist id="formList"></datalist>
           <button id="btnLoad" class="btn">🔎 Tìm kiếm</button>
+		  
+		  <div class="row" style="margin-top:8px;">
+		  
+		  <label>Thời gian in:</label>
+		  <select id="selPrintedAt" class="input mini">
+			<option value="">-- tất cả --</option>
+		  </select>
+		  <button id="btnFilterPrinted" class="btn-ghost">🕒 Lọc theo thời gian in</button>
+		</div>
+		  
         </div>
         <div class="row" style="margin-top:8px;">
           <label>Type:</label>
@@ -357,6 +367,8 @@ document.querySelectorAll('.tab').forEach(btn=>{
   });
 });
 
+
+
 /* ========== Auto-Upload ========== */
 function isAutoUploadOn(){ return localStorage.getItem(LS_AUTOUPL)==='1'; }
 function setAutoUpload(on){ localStorage.setItem(LS_AUTOUPL,on?'1':'0'); chkAutoUpload.checked=on; kpiAutoUpload.textContent=on?'ON':'OFF'; }
@@ -364,8 +376,9 @@ chkAutoUpload.addEventListener('change', ()=> setAutoUpload(chkAutoUpload.checke
 setAutoUpload(isAutoUploadOn());
 
 /* ========== 1) Sync In ========== */
+
 document.getElementById('btnSyncIn').addEventListener('click', async ()=>{
-  syncMsg.textContent='⏳ Đang tải dữ liệu từ K2_Master...';
+  syncMsg.textContent = '⏳ Đang tải dữ liệu từ K2_Master...';
   try{
     const { data, error } = await client
       .from(SOURCE_TABLE)
@@ -374,22 +387,43 @@ document.getElementById('btnSyncIn').addEventListener('click', async ()=>{
       .is('receipt_date_time',null);
     if(error) throw error;
 
-    if(!data || !data.length){
+    // 🟢 Lọc thêm: chỉ lấy Remaining Qty > 0
+    const filtered = (data || []).filter(r => Number(r["Remaining Qty"]) > 0);
+
+    if(!filtered.length){
       setCache({}); setLastSync();
-      syncMsg.innerHTML='<span class="warn">⚠️ Không có dòng nào thỏa điều kiện.</span>';
+      syncMsg.innerHTML = '<span class="warn">⚠️ Không có dòng nào thỏa điều kiện.</span>';
       refreshFormSuggestions(); refreshDashboard(); return;
     }
 
     const map={};
-    data.forEach(r=>{ if(!map[r.form_no]) map[r.form_no]=[]; r._key=makeRowKey(r); map[r.form_no].push(r); });
+    filtered.forEach(r=>{
+      if(!map[r.form_no]) map[r.form_no]=[];
+      r._key = makeRowKey(r);
+      map[r.form_no].push(r);
+    });
+
     setCache(map); setLastSync();
-    syncMsg.innerHTML=`<span class="ok">✅ Đã tải ${Object.keys(map).length} form_no (lưu offline).</span>`;
+	
+		// 🟡 Sau khi tải cache, tạo dropdown printed_at unique
+	const allPrinted = [...new Set(filtered.map(r => (r.printed_at || '').slice(0,19)))].sort();
+	const selPrintedAt = document.getElementById('selPrintedAt');
+	selPrintedAt.innerHTML = `<option value="">-- tất cả (${allPrinted.length}) --</option>` +
+	  allPrinted.map(p => `<option value="${p}">${p}</option>`).join('');
+
+	
+	
+    syncMsg.innerHTML = `<span class="ok">✅ Đã tải ${Object.keys(map).length} form_no (Remaining > 0).</span>`;
     refreshFormSuggestions(); refreshDashboard();
   }catch(err){
     console.error(err);
-    syncMsg.innerHTML=`<span class="error">❌ Lỗi tải dữ liệu: ${err.message||err}</span>`;
+    syncMsg.innerHTML = `<span class="error">❌ Lỗi tải dữ liệu: ${err.message||err}</span>`;
   }
 });
+
+
+
+
 document.getElementById('btnViewCache').addEventListener('click', ()=>{
   const cache=getCache(); const forms=Object.keys(cache);
   const rows=forms.reduce((a,f)=>a+(cache[f]?.length||0),0);
@@ -398,10 +432,19 @@ document.getElementById('btnViewCache').addEventListener('click', ()=>{
 
 /* ========== 2) Tìm kiếm (trống = tất cả) + autocomplete ========== */
 formNoInput.addEventListener('input', ()=>{
-  const cache=getCache(); const q=formNoInput.value.trim().toUpperCase();
-  const forms=Object.keys(cache).filter(fn=>!q||fn.toUpperCase().includes(q)).slice(0,200);
+  const cache=getCache(); 
+  const q=formNoInput.value.trim().toUpperCase();
+  const forms=Object.keys(cache)
+    .filter(fn=>!q||fn.toUpperCase().includes(q))
+    .slice(0,200);
   formList.innerHTML=forms.map(fn=>`<option value="${fn}"></option>`).join('');
+
+  // 🟢 Khi chọn hoặc gõ đủ Form No, tự động load luôn
+  if(q && forms.includes(q)) {
+    document.getElementById('btnLoad').click();
+  }
 });
+
 document.getElementById('btnLoad').addEventListener('click', ()=>{
   const cache=getCache(); const q=formNoInput.value.trim(); let rows=[];
   if(!q){ Object.keys(cache).forEach(fn=>(cache[fn]||[]).forEach(r=>rows.push(r))); currentForms=Object.keys(cache); }
@@ -418,8 +461,45 @@ document.getElementById('btnLoad').addEventListener('click', ()=>{
   currentRows=rows.map(r=>({...r,seq:++seqCounter,selected:false}));
   renderTable(); updateMeta(currentRows,currentForms);
   statusEl.textContent=`✅ Tải ${currentRows.length} dòng (${currentForms.length} form)`;
+  
+  // 🟢 THÊM ĐOẠN NÀY Ở CUỐI HÀM
+  const allPrinted = [...new Set(currentRows.map(r => (r.printed_at || '').slice(0,19)))].sort();
+  document.getElementById('selPrintedAt').innerHTML =
+    `<option value="">-- tất cả (${allPrinted.length}) --</option>` +
+    allPrinted.map(p => `<option value="${p}">${p}</option>`).join('');
 });
+
 formNoInput.addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('btnLoad').click(); });
+
+
+
+// ========== Lọc theo printed_at (unique) ==========
+document.getElementById('btnFilterPrinted').addEventListener('click', ()=>{
+  const selVal = document.getElementById('selPrintedAt').value;
+  const cache = getCache();
+  const forms = Object.keys(cache);
+  let rows = [];
+
+  forms.forEach(fn=>{
+    (cache[fn]||[]).forEach(r=>{
+      if(!selVal || (r.printed_at && r.printed_at.startsWith(selVal))) rows.push(r);
+    });
+  });
+
+  if(!rows.length){
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">⚠️ Không có dòng nào có printed_at = ${selVal || '(tất cả)'}.</td></tr>`;
+    updateMeta([],[]);
+    return;
+  }
+
+  rows.sort((a,b)=> String(a.ItemCode).localeCompare(String(b.ItemCode),'en',{numeric:true}));
+  seqCounter = 0;
+  currentRows = rows.map(r=>({...r, seq:++seqCounter, selected:false}));
+  renderTable(); updateMeta(currentRows, forms);
+  statusEl.textContent = `✅ Lọc ${currentRows.length} dòng (printed_at = ${selVal || 'tất cả'})`;
+});
+
+
 
 /* ========== Render + Bind ========== */
 function renderTable(){
