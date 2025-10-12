@@ -124,15 +124,16 @@
               <th>#</th>
               <th>
                 <div class="hicons">
-                  <span id="hiSelectAll" class="ico-btn" title="Chọn tất cả">✓ All</span>
-                  <span id="hiClearAll"  class="ico-btn" title="Bỏ chọn tất cả">✕ None</span>
-                </div>
+				  <span id="hiToggleSelect" class="ico-btn" title="Chọn/Bỏ chọn tất cả">✓ Select</span>
+				</div>
               </th>
-              <th>Form No</th>
+               
               <th>ItemCode</th>
-              <th>Qty</th>
+              
               <th>Remaining Qty</th>
               <th>EHS VN Desc</th>
+			  <th>Form No</th>
+				<th>Qty form</th>
               <th>EHS Type</th>
             </tr>
           </thead>
@@ -270,8 +271,22 @@ const inpTeam      = document.getElementById('inpTeam');
 const inpPalletCnt = document.getElementById('inpPalletCount');
 const inpPalletStart = document.getElementById('inpPalletStart');
 const chkAutoUpload= document.getElementById('chkAutoUpload');
-const hiSelectAll  = document.getElementById('hiSelectAll');
-const hiClearAll   = document.getElementById('hiClearAll');
+//const hiSelectAll  = document.getElementById('hiSelectAll');
+//const hiClearAll   = document.getElementById('hiClearAll');
+const hiToggleSelect = document.getElementById('hiToggleSelect');
+
+hiToggleSelect.addEventListener('click', () => {
+  const total = currentRows.length;
+  const selected = currentRows.filter(r => r.selected).length;
+  const selectAll = selected < total; // nếu chưa chọn hết thì chọn hết
+
+  currentRows.forEach(r => r.selected = selectAll);
+  renderTable();
+  updateMeta(currentRows, currentForms);
+
+  // Đổi text của nút cho trực quan
+  hiToggleSelect.textContent = selectAll ? '✕ Clear' : '✓ Select';
+});
 const kpiCacheForms= document.getElementById('kpiCacheForms');
 const kpiCacheRows = document.getElementById('kpiCacheRows');
 const kpiDraftBatches=document.getElementById('kpiDraftBatches');
@@ -415,15 +430,20 @@ function renderTable(){
     tr.innerHTML = `
       <td>${r.seq}</td>
       <td><input type="checkbox" class="row-check" ${r.selected?'checked':''}></td>
-      <td>${r.form_no??''}</td>
+      
       <td>${r.ItemCode??''}</td>
-      <td>${r.Quantity??''}</td>
+      
       <td contenteditable="true">${r["Remaining Qty"]??''}</td>
       <td class="h-scroll">${r.EHS_VN_description??''}</td>
+	  <td>${r.form_no??''}</td>
+	  <td>${r.Quantity??''}</td>
       <td>${r.EHS_Type??''}</td>`;
     tbody.appendChild(tr);
   });
   bindEvents();
+  
+  hiToggleSelect.textContent = '✓ Select';
+
 }
 function bindEvents(){
   tbody.querySelectorAll('.row-check').forEach((cb,i)=>{
@@ -441,8 +461,8 @@ function bindEvents(){
     });
   });
 }
-hiSelectAll.addEventListener('click', ()=>{ currentRows.forEach(r=>r.selected=true); renderTable(); updateMeta(currentRows,currentForms); });
-hiClearAll.addEventListener('click', ()=>{ currentRows.forEach(r=>r.selected=false); renderTable(); updateMeta(currentRows,currentForms); });
+//hiSelectAll.addEventListener('click', ()=>{ currentRows.forEach(r=>r.selected=true); renderTable(); updateMeta(currentRows,currentForms); });
+//hiClearAll.addEventListener('click', ()=>{ currentRows.forEach(r=>r.selected=false); renderTable(); updateMeta(currentRows,currentForms); });
 
 /* ========== Meta footer ========== */
 function updateMeta(rows,forms){
