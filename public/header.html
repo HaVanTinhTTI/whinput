@@ -51,7 +51,7 @@
   position: fixed;
   top: 60px;
   left: 0;
-  width: 60px; /* thu gọn mặc định */
+  width: 60px;
   height: calc(100% - 60px);
   background-color: #f4f4f4;
   border-right: 2px solid #ccc;
@@ -59,8 +59,9 @@
   font-family: Tahoma, sans-serif;
   overflow-y: auto;
   transition: width 0.3s ease, box-shadow 0.3s ease;
-  z-index: 999;
+  z-index: 10; /* thêm dòng này */
 }
+
 
 /* Khi rê chuột vào thì mở rộng */
 .sidebar:hover {
