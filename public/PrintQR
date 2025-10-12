@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>QR Generator (RWH-SCRAP)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    h1 { text-align: center; }
+    textarea {
+      width: 100%; height: 100px; margin-bottom: 10px;
+      color: #999;
+    }
+    textarea:focus { color: #000; }
+    .controls { margin-top: 20px; }
+    button { margin-right: 10px; padding: 8px 15px; cursor: pointer; }
+    #duplicateList {
+      color: red;
+      margin-top: 10px;
+      font-weight: bold;
+      white-space: pre-line;
+    }
+
+    /* Table thông tin cố định + scroll */
+    #dataTable {
+      width: 100%; border-collapse: collapse; background: white;
+      max-height: 250px; display: block; overflow-y: auto;
+      border: 1px solid #ccc;
+    }
+    #dataTable thead {
+      background: #eee; position: sticky; top: 0; z-index: 1;
+    }
+    #dataTable th, #dataTable td {
+      border: 1px solid #ccc; padding: 8px; text-align: center; min-width: 100px;
+    }
+
+    /* Cho phép chỉnh Remark */
+    .editable-remark {
+      background-color: #fff8dc;
+      outline: none;
+    }
+    .editable-remark:focus {
+      background-color: #fff3b0;
+    }
+
+    /* QR Layout */
+    #qr-table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    #qr-table td {
+      width: 50%; height: 105mm; text-align: center; vertical-align: middle;
+      border: 1px solid #ccc; background: white;
+    }
+    .qr-box { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .qr-box canvas { width: 150px; height: 150px; margin-bottom: 8px; }
+
+    @media print {
+      body { background: white; }
+      textarea, .controls, #dataTable, #duplicateList { display: none; }
+      #qr-table { page-break-inside: avoid; }
+      td { page-break-inside: avoid; }
+
+      body * { visibility: hidden; }
+      #qr-table, #qr-table * { visibility: visible; }
+      #qr-table { position: absolute; left: 0; top: 0; }
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+  <h1>QR Generator (RWH-SCRAP)</h1>
+
+  <div class="controls">
+    <p>Dán dữ liệu từ Excel (cột: form_no, item, qty, team, remark):</p>
+    <textarea id="excelInput" placeholder="📘 Ví dụ dữ liệu mẫu (form_no, item, qty, team, remark):
+
+form_no	item	qty	team	remark
+MRCD24045307	900211001	3	DC	10/12/2025
+MRCD24045308	900211001	3	DC	10/12/2025
+MRCD24084278	900211001	3	DC	10/12/2025
+MRCD24084277	900211001	3	DC	10/12/2025
+MRCD24084276	900211001	3	DC	10/12/2025"></textarea><br>
+
+    <button id="generateBtn">Tạo QR</button>
+    <button onclick="window.print()">Print</button>
+    <button id="clearBtn" style="background:#f8d7da;border:1px solid #dc3545;">Clear</button>
+    <p id="total">Total: 0 Form No</p>
+    <div id="duplicateList"></div>
+  </div>
+
+  <table id="dataTable">
+    <thead>
+      <tr>
+        <th>Form No</th>
+        <th>Item</th>
+        <th>Qty</th>
+        <th>Team</th>
+        <th>Remark</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <table id="qr-table"></table>
+
+  <script>
+    // === Khởi tạo Supabase client ===
+    const supabaseUrl = 'https://chjqassbtcqthueeddou.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoanFhc3NidGNxdGh1ZWVkZG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzY2OTgsImV4cCI6MjA3NTcxMjY5OH0.FbWGSw9sqUkb2_ppErN4QTFGy1Cho-HX4XbR5_-KB0I';
+    const client = supabase.createClient(supabaseUrl, supabaseKey);
+
+    // === Xử lý tạo QR ===
+    async function processData() {
+      const input = document.getElementById('excelInput').value.trim();
+      if (!input) return alert('⚠️ Vui lòng dán dữ liệu từ Excel (form_no, item, qty, team, remark)');
+
+      const lines = input.split('\n');
+      const tableBody = document.querySelector('#dataTable tbody');
+      const qrTable = document.getElementById('qr-table');
+      const duplicateListDiv = document.getElementById('duplicateList');
+
+      tableBody.innerHTML = '';
+      qrTable.innerHTML = '';
+      duplicateListDiv.innerHTML = '⏳ Đang kiểm tra dữ liệu...';
+
+      const seen = new Set();
+      const uniqueData = [];
+      const invalidLines = [];
+
+      lines.forEach((line, i) => {
+        if (!line.trim()) return;
+        const parts = line.split(/\t|,|\|{1,}| {2,}/).map(p => p.trim()).filter(Boolean);
+        if (parts.length < 5) {
+          invalidLines.push(`Dòng ${i + 1}: "${line}"`);
+          return;
+        }
+
+        const [formNo, item, qty, team, remark] = parts;
+        if (formNo && !seen.has(formNo)) {
+          seen.add(formNo);
+          uniqueData.push({ formNo, item, qty, team, remark });
+        }
+      });
+
+      // 🟢 Sort theo Form No (A → Z)
+      uniqueData.sort((a, b) => a.formNo.localeCompare(b.formNo, 'en', { numeric: true }));
+
+      // 🟣 Kiểm tra Supabase (nếu có)
+      const formNos = uniqueData.map(d => d.formNo);
+      const { data: existing, error } = await client
+        .from('printed_qr_logs')
+        .select('form_no')
+        .in('form_no', formNos);
+
+      const existingNos = existing ? existing.map(e => e.form_no) : [];
+      const duplicates = uniqueData.filter(d => existingNos.includes(d.formNo));
+
+      // Hiển thị bảng dữ liệu
+      uniqueData.forEach(({ formNo, item, qty, team, remark }) => {
+        const isDup = existingNos.includes(formNo);
+        const rowHTML = `
+          <tr style="background:${isDup ? '#ffe5e5' : 'white'}">
+            <td>${formNo}</td>
+            <td>${item}</td>
+            <td>${qty}</td>
+            <td>${team}</td>
+            <td contenteditable="true" class="editable-remark">${remark || ''}</td>
+          </tr>`;
+        tableBody.insertAdjacentHTML('beforeend', rowHTML);
+      });
+
+      // Tạo QR
+      let row;
+      uniqueData.forEach(({ formNo }, index) => {
+        if (index % 2 === 0) {
+          row = document.createElement('tr');
+          qrTable.appendChild(row);
+        }
+
+        const td = document.createElement('td');
+        const div = document.createElement('div');
+        div.className = 'qr-box';
+
+        const canvas = document.createElement('canvas');
+        new QRious({ element: canvas, value: formNo, size: 200, level: 'H' });
+
+        const label = document.createElement('div');
+        label.textContent = formNo;
+
+        div.appendChild(canvas);
+        div.appendChild(label);
+        td.appendChild(div);
+        row.appendChild(td);
+      });
+
+      document.getElementById('total').textContent = 'Total: ' + uniqueData.length + ' Form No';
+
+      // Hiển thị lỗi & trùng
+      let msg = '';
+      if (duplicates.length > 0) msg += `⚠️ ${duplicates.length} Form No đã tồn tại.\n`;
+      if (invalidLines.length > 0) msg += `❌ ${invalidLines.length} dòng lỗi:\n${invalidLines.join('\n')}`;
+      duplicateListDiv.textContent = msg || '✅ Không có lỗi định dạng hoặc trùng lặp.';
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', processData);
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      document.getElementById('excelInput').value = '';
+    });
+
+    // === Lưu log sau khi in ===
+    window.onafterprint = async function() {
+      const rows = document.querySelectorAll('#dataTable tbody tr');
+      const data = [];
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 5) {
+          data.push({
+            form_no: cells[0].textContent.trim(),
+            item: cells[1].textContent.trim(),
+            qty: cells[2].textContent.trim(),
+            team: cells[3].textContent.trim(),
+            remark: cells[4].textContent.trim(),
+            printed_at: new Date().toISOString()
+          });
+        }
+      });
+
+      if (data.length > 0) {
+        const { error } = await client
+          .from('printed_qr_logs')
+          .insert(data);
+
+        if (error) {
+          console.error("❌ Lỗi Supabase:", error);
+          alert('❌ Lỗi khi lưu vào Supabase: ' + error.message);
+        } else {
+          alert('✅ Dữ liệu đã được lưu vào Supabase (printed_qr_logs).');
+        }
+      }
+    };
+  </script>
+</body>
+</html>
