@@ -1,23 +1,16 @@
-// layout-loader.js
 async function loadLayout() {
-  // Load file header.html
-  const res = await fetch("header.html");
-  const html = await res.text();
+  try {
+    const res = await fetch("header.html");
+    if (!res.ok) throw new Error("Không tìm thấy header.html");
+    const html = await res.text();
 
-  // Tạo 1 iframe để chứa giao diện layout
-  const iframe = document.createElement("iframe");
-  iframe.srcdoc = html;
-  iframe.style.position = "fixed";
-  iframe.style.top = 0;
-  iframe.style.left = 0;
-  iframe.style.width = "100%";
-  iframe.style.height = "100%";
-  iframe.style.border = "none";
-  iframe.style.zIndex = 999;
-  
-  document.body.appendChild(iframe);
-
-  // Ẩn thanh scroll chính
-  document.body.style.overflow = "hidden";
+    // chèn layout vào đầu body, nhưng không ghi đè nội dung cũ
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = html;
+    document.body.prepend(wrapper);
+    console.log("✅ Header + Sidebar loaded successfully");
+  } catch (err) {
+    console.error("❌ Lỗi load layout:", err);
+  }
 }
 loadLayout();
