@@ -1,78 +1,174 @@
-<!-- ===== HEADER (Fixed for all pages) ===== -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>TTI Scrap Management</title>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
+/* ===== HEADER (Fixed for all pages) ===== */
 .header {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 60px;
-  background: linear-gradient(90deg, #9acd32, #b0e70d);
+  background: linear-gradient(90deg, #9acd32, #b5e61d);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
   box-sizing: border-box;
   border-bottom: 3px solid #1a1a1a;
-  z-index: 9999;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  z-index: 1000;
   font-family: Tahoma, sans-serif;
 }
 
-/* Left logo */
-.header .left-logo {
-  display: flex;
-  align-items: center;
-}
-.header .left-logo img {
-  height: 40px;
-  margin-right: 10px;
-}
-.header .left-logo span {
-  font-weight: bold;
-  font-size: 20px;
-  color: #000;
+/* Left Logo */
+.header .logo-left img {
+  height: 45px;
 }
 
-/* Center title */
+/* Title */
 .header .title {
   flex: 1;
   text-align: center;
+  color: #fff;
   font-size: 22px;
   font-weight: bold;
-  color: #fff;
   letter-spacing: 1px;
   text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
 }
 
-/* Right logo */
-.header .right-logo img {
-  height: 36px;
+/* Right Logo */
+.header .logo-right img {
+  height: 45px;
 }
 
-/* Responsive (mobile) */
-@media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    height: auto;
-    padding: 10px;
-    text-align: center;
-  }
-  .header .title {
-    margin-top: 5px;
-    font-size: 18px;
-  }
+/* ===== SIDEBAR ===== */
+.sidebar {
+  position: fixed;
+  top: 60px;
+  left: 0;
+  width: 220px;
+  height: calc(100% - 60px);
+  background-color: #f4f4f4;
+  border-right: 2px solid #ccc;
+  padding: 20px;
+  box-sizing: border-box;
+  font-family: Tahoma, sans-serif;
+  overflow-y: auto;
 }
+
+.tree-menu { list-style: none; padding-left: 0; margin: 0; }
+.tree-menu li { margin: 5px 0; }
+.tree-menu a {
+  display: block;
+  padding: 6px 8px;
+  color: #333;
+  text-decoration: none;
+  border-radius: 6px;
+}
+.tree-menu a:hover {
+  background: #e0e0e0;
+  color: #1976d2;
+}
+
+/* ===== MAIN ===== */
+body { margin: 0; background:#f7f7f7; }
+.main-wrap { margin-left: 240px; margin-top: 80px; padding: 18px; font-family: Tahoma, sans-serif; }
+
+/* Filter bar */
+#filter-bar {
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+  background: #fff;
+  padding:10px 14px;
+  border-radius:8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+/* KPI */
+.kpi-row { display:flex; gap:16px; margin-top:14px; flex-wrap:wrap; }
+.kpi-box { flex:1; min-width:180px; padding:16px; border-radius:8px; color:#fff; font-weight:700; }
+.kpi-box .label { font-size:13px; font-weight:600; opacity:0.9 }
+.kpi-box .value { font-size:26px; margin-top:6px }
+
+.kpi-qty { background:#4caf50; }
+.kpi-wt { background:#2196f3; }
+.kpi-val { background:#ff9800; }
+.kpi-item { background:#9c27b0; }
+
+/* Chart */
+.chart-wrap { margin-top:20px; background:#fff; padding:18px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
+
+/* Table */
+.table-wrap { margin-top:18px; background:#fff; padding:14px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
+.table-wrap table { width:100%; border-collapse: collapse; font-size:13px; }
+.table-wrap th, .table-wrap td { border:1px solid #e3e3e3; padding:8px; text-align:center; }
+.table-wrap th { background:#f4f4f4; }
+
+/* Pagination */
+.page-controls { display:flex; gap:10px; align-items:center; justify-content:center; margin-top:10px; }
+.page-controls button { padding:6px 10px; border-radius:6px; border:1px solid #ccc; background:#fff; cursor:pointer; }
+.page-info { font-size:13px; color:#333; }
+
+/* Footer */
+#footer-wrapper { width:100%; background-color:#f2f2f2; padding:10px 0; border-top:2px solid #ccc; text-align:left; position:fixed; bottom:0; left:0; }
+.footercuahang { margin-left:10px; font-family:Tahoma, sans-serif; }
 </style>
+</head>
+<body>
 
+<!-- ===== HEADER ===== -->
 <div class="header">
-  <div class="left-logo">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/4/42/Ryobi_logo.svg" alt="RYOBI">
+  <div class="logo-left">
+    <img src="https://meixnbjwoifzltvdnykn.supabase.co/storage/v1/object/public/Image/LOGO%20RYOBI.png" alt="RYOBI">
   </div>
 
-  <div class="title">
-    TTI SCRAP MANAGEMENT
-  </div>
+  <div class="title">TTI SCRAP MANAGEMENT</div>
 
-  <div class="right-logo">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/a/a9/TTI_Logo.svg" alt="TTI">
+  <div class="logo-right">
+    <img src="https://meixnbjwoifzltvdnykn.supabase.co/storage/v1/object/public/Image/Logo%20TTI.png" alt="TTI">
   </div>
 </div>
+
+<!-- ===== SIDEBAR ===== -->
+<div class="sidebar">
+  <h3>Navigation</h3>
+  <ul class="tree-menu">
+    <li><a href="https://whinput.vercel.app/menu.html" target="_blank">🏠 Home</a></li>
+    <li><a href="https://whinput.vercel.app/form.html" target="_blank">🧾 Update K2 Master</a></li>
+    <li><a href="https://whinput.vercel.app/PrintQR.html" target="_blank">🖨️ Print QR</a></li>
+    <li><a href="https://whinput.vercel.app/RYOBISCRAP.html" target="_blank">📥 Receiving</a></li>
+    <li><a href="#">👤 User</a></li>
+    <li><a href="#">📦 Inventory</a></li>
+    <li><a href="#">📊 Reports</a></li>
+  </ul>
+</div>
+
+<!-- ===== MAIN ===== -->
+<div class="main-wrap">
+
+  <!-- Giữ nguyên phần nội dung KPI, Chart, Table, Script của Tính -->
+  <!-- (Không thay đổi logic Supabase / Chart / Export / Pagination) -->
+
+</div>
+
+<!-- ===== FOOTER ===== -->
+<div id="footer-wrapper">
+  <div class="footercuahang">
+    <p style="font-size:1vw; margin: 0;">Contact: Ha Van Tinh (VN.OP-SC-WH) / Smile Dinh Thanh Trung (VN.OP-WH)</p>
+  </div>
+</div>
+
+<!-- Giữ nguyên toàn bộ script Supabase ở cuối trang -->
+<!-- ... -->
+</body>
+</html>
