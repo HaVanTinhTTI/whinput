@@ -72,6 +72,19 @@ main#page-content {
   font-family: Tahoma, sans-serif;
   background: #f7f7f7;
 }
+
+  /* ===== MAIN CONTENT SAFE ZONE ===== */
+#page-content {
+  position: relative;
+  margin-left: 240px;  /* chừa chỗ cho sidebar */
+  margin-top: 80px;    /* chừa chỗ cho header */
+  padding: 20px;
+  background: #f9f9f9;
+  min-height: calc(100vh - 100px); /* đảm bảo không bị footer đè */
+  box-sizing: border-box;
+  z-index: 0;
+}
+
 </style>
 
 <!-- HEADER -->
