@@ -1,73 +1,278 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <title>Upload Inventory Excel to Supabase</title>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <meta charset="UTF-8" />
+  <title>CDCE & K2_Master Data Tools</title>
+  <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      padding: 20px;
+    }
+    h2 { color: #333; }
+    button {
+      margin: 5px;
+      padding: 8px 16px;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    button:hover { background: #0056b3; }
+    input[type=file] { margin: 10px 0; }
+    #status-sample, #status-update {
+      margin-top: 10px;
+      font-weight: bold;
+      white-space: pre-line;
+    }
+    .ok { color: green; }
+    .error { color: red; }
+    .box {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 25px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+	
+		
+	#loading-spinner {
+	  display: none;
+	  margin: 20px auto;
+	  border: 8px solid #f3f3f3;
+	  border-top: 8px solid #007bff;
+	  border-radius: 50%;
+	  width: 60px;
+	  height: 60px;
+	  animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+	  0% { transform: rotate(0deg); }
+	  100% { transform: rotate(360deg); }
+	}
+
+  </style>
 </head>
 <body>
-  <h2>Upload Inventory Excel File</h2>
-  <input type="file" id="excelFile" />
-  <button onclick="uploadExcel()">Upload</button>
 
+  <h2>📦 CDCE Sample & K2_Master Tools</h2>
+
+  <!-- ==== DOWNLOAD FILE MẪU ==== -->
+  <div class="box">
+    <h3>⬇️ Tải file mẫu CDCE Sample</h3>
+    <button id="downloadBtn">Tải file mẫu</button>
+    <div id="status-sample"></div>
+	
+  </div>
+
+  <!-- ==== MASS UPDATE K2_MASTER ==== -->
+  <div class="box">
+    <h3>📤 Mass Update to K2_Master</h3>
+    <input type="file" id="massUpload" multiple accept=".xlsx,.xls,.csv" />
+    <button id="massUploadBtn">Upload & Update</button>
+	<div id="loading-spinner"></div>
+    <div id="status-update"></div>
+  </div>
   <script>
-    const supabaseUrl = 'https://chjqassbtcqthueeddou.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoanFhc3NidGNxdGh1ZWVkZG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzY2OTgsImV4cCI6MjA3NTcxMjY5OH0.FbWGSw9sqUkb2_ppErN4QTFGy1Cho-HX4XbR5_-KB0I';
-    const client = supabase.createClient(supabaseUrl, supabaseKey);
+		async function downloadCDCESample() {
+  try {
+    const { data, error } = await client.from('cdce_sample').select('*');
+    if (error) return showStatus('❌ Lỗi tải mẫu: ' + error.message, true, 'sample');
+    if (!data.length) return showStatus('⚠️ Không có dữ liệu mẫu.', true, 'sample');
 
-    async function uploadExcel() {
-      const file = document.getElementById('excelFile').files[0];
-      if (!file) {
-        alert('Vui lòng chọn file Excel trước khi upload.');
-        return;
-      }
+    const filtered = data.map(({ id, ...rest }) => rest);
+    const ws = XLSX.utils.json_to_sheet(filtered);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'cdce_sample');
+    XLSX.writeFile(wb, 'cdce_sample.xlsx');
+    showStatus('✅ Đã tải file mẫu!', false, 'sample');
+  } catch (err) {
+    console.error(err);
+    showStatus('❌ Lỗi khi tải file mẫu.', true, 'sample');
+  }
+}
+		const client = supabase.createClient(
+  'https://chjqassbtcqthueeddou.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoanFhc3NidGNxdGh1ZWVkZG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzY2OTgsImV4cCI6MjA3NTcxMjY5OH0.FbWGSw9sqUkb2_ppErN4QTFGy1Cho-HX4XbR5_-KB0I'
+);
 
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const json = XLSX.utils.sheet_to_json(sheet, { defval: null });
+const validColumns = [
+  'MRDetailID', 'MRRequestID', 'ItemCode', 'ItemSystemDesc', 'Quantity',
+  'QuantityIssued', 'QuantityDefect', 'QuantityPerAssembly',
+  'Revision', 'StatusDesc', 'SubmittedDate', 'CompletedDate',
+  'ERPReasonName', 'ERPReason', 'ResponsibleDeptCode', 'ResponsibleDeptDesc'
+];
 
-          const mappedData = json.map(row => {
-            const record = {
-              seq: row['SEQ'],
-              item_no: row['ITEM NO'],
-              rev: row['REV.'],
-              subinventory: row['SUBINVENTORY'],
-              locator: row['LOCATOR'],
-              on_hand: row['ON HAND'],
-              uom: row['UOM'],
-              site: row['Site'],
-              demand: row['Demand']
-            };
-            if (row['LOT NUMBER'] !== null && row['LOT NUMBER'] !== undefined) {
-              record.lot_number = row['LOT NUMBER'];
-            }
-            return record;
-          });
+function showStatus(msg, isError = false, type = 'sample') {
+  const div = document.getElementById(type === 'sample' ? 'status-sample' : 'status-update');
+  div.innerHTML = msg.replace(/\n/g, '<br>');
+  div.className = isError ? 'error' : 'ok';
+}
 
-          const { data: inserted, error } = await client
-            .from('inventory_data')
-            .insert(mappedData);
+function chunkArray(array, size) {
+  const result = [];
+  for (let i = 0; i < array.length; i += size) {
+    result.push(array.slice(i, i + size));
+  }
+  return result;
+}
 
-          if (error) {
-            alert('Lỗi: ' + error.message);
-            console.error(error);
-          } else {
-            alert('Upload thành công!');
-            console.log(inserted);
-          }
-        } catch (err) {
-          console.error('Lỗi xử lý file:', err);
-          alert('Đã xảy ra lỗi khi xử lý file: ' + err.message);
-        }
-      };
-      reader.readAsArrayBuffer(file);
+async function readExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array', codepage: 65001 });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, { defval: null });
+      resolve(json);
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+
+function isRowChanged(newRow, oldRow) {
+  for (const key of validColumns) {
+    const a = newRow[key];
+    const b = oldRow[key];
+
+    // Nếu cả hai đều null hoặc undefined → giống nhau
+    if ((a === null || a === undefined) && (b === null || b === undefined)) continue;
+
+    // Nếu cả hai là số → so sánh bằng số
+    if (typeof a === 'number' && typeof b === 'number') {
+      if (a !== b) return true;
+      continue;
     }
-  </script>
+
+    // Nếu là chuỗi → chuẩn hóa: loại khoảng trắng, chuyển về chữ thường
+    if (String(a).trim().toLowerCase() !== String(b).trim().toLowerCase()) {
+      return true;
+    }
+  }
+  return false; // không có thay đổi
+}
+
+
+window.massUpdateK2Master = async function()
+ {
+		const startTime = performance.now();
+	  const input = document.getElementById('massUpload');
+	  const files = input.files;
+	  if (!files.length) return showStatus('⚠️ Chưa chọn file.', true, 'update');
+
+	  let inserted = 0, updated = 0, failed = 0, skipped = 0, total = 0;
+	  const failedDetails = [];
+
+	  for (const file of files) {
+		const rows = await readExcel(file);
+		total += rows.length;
+	//lock
+	document.getElementById('loading-spinner').style.display = 'block'
+
+		const mrIDs = rows.map(r => Number(r.MRDetailID)).filter(Boolean);
+		const chunkedIDs = chunkArray(mrIDs, 200);
+		let existingRows = [];
+
+		for (const chunk of chunkedIDs) {
+		  const { data, error } = await client
+			.from('K2_Master')
+			.select('*')
+			.in('MRDetailID', chunk);
+
+		  if (error) {
+			showStatus('❌ Lỗi khi load MRDetailID: ' + error.message, true, 'update');
+			return;
+		  }
+
+		  existingRows = existingRows.concat(data);
+		}
+
+		const existingMap = new Map(existingRows.map(r => [r.MRDetailID, r]));
+		const toInsert = [];
+		const toUpdate = [];
+
+		for (const row of rows) {
+		  const mrDetailID = Number(row.MRDetailID);
+		  if (!mrDetailID) continue;
+
+		  const cleanRow = {};
+		  for (const key of validColumns) {
+			if (row.hasOwnProperty(key) && row[key] !== null && row[key] !== undefined && row[key] !== '') {
+			  cleanRow[key] = row[key];
+			}
+		  }
+
+		  if (Object.keys(cleanRow).length === 0) continue;
+
+		  const oldRow = existingMap.get(mrDetailID);
+		  if (oldRow) {
+			if (isRowChanged(cleanRow, oldRow)) {
+			  toUpdate.push(cleanRow);
+			} else {
+			  skipped++;
+			}
+		  } else {
+			toInsert.push(cleanRow);
+		  }
+		}
+
+		if (toUpdate.length) {
+		  const { error: upErr } = await client.from('K2_Master').upsert(toUpdate, { onConflict: 'MRDetailID' });
+		  if (upErr) {
+			failed += toUpdate.length;
+			failedDetails.push('❌ Update batch lỗi: ' + upErr.message);
+		  } else {
+			updated += toUpdate.length;
+		  }
+		}
+
+		if (toInsert.length) {
+		  const { error: inErr } = await client.from('K2_Master').insert(toInsert);
+		  if (inErr) {
+			failed += toInsert.length;
+			failedDetails.push('❌ Insert batch lỗi: ' + inErr.message);
+		  } else {
+			inserted += toInsert.length;
+		  }
+		}
+  }
+
+const endTime = performance.now();
+const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(2);
+
+  const result = `
+✅ Hoàn tất upload ${files.length} file<br>
+⏱️ Thời gian xử lý: ${elapsedSeconds} giây<br>
+Tổng ${total} dòng:<br>
+➕ ${inserted} mới<br>
+🔄 ${updated} cập nhật<br>
+⏭️ ${skipped} bỏ qua<br>
+❌ ${failed} lỗi<br>
+${failed > 0 ? '<br><b>Chi tiết lỗi:</b><br>' + failedDetails.join('<br>') : ''}
+  `;
+  document.getElementById('loading-spinner').style.display = 'none';
+  showStatus(result, failed > 0, 'update');
+};
+
+
+
+
+
+
+
+document.getElementById('downloadBtn').addEventListener('click', downloadCDCESample);
+document.getElementById('massUploadBtn').addEventListener('click', window.massUpdateK2Master);
+document.getElementById('downloadBtn').addEventListener('click', downloadCDCESample);
+
+
+</script>
+  
 </body>
 </html>
