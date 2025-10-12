@@ -39,7 +39,49 @@
     .hicons{display:inline-flex;gap:6px;align-items:center}
     .ico-btn{background:#e5e7eb;border-radius:6px;padding:2px 6px;font-size:12px;cursor:pointer;border:1px solid #d1d5db}
     .ico-btn:hover{background:#dbeafe}
-	
+	/* ⚡ CLASS CHUNG CHO NÚT CHÍNH (Tab, Save, Upload) */
+.btn-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  background: #f1f5f9;
+  color: #1e293b;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: all 0.15s ease;
+  cursor: pointer;
+  flex: 1;
+}
+
+.btn-tab:hover {
+  background: #e2e8f0;
+}
+
+.btn-tab.active {
+  background: #2563eb;
+  color: #fff;
+}
+
+.btn-tab:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Biến thể màu (tuỳ theo loại thao tác) */
+.btn-save {
+  background: #22c55e;
+  color: white;
+}
+.btn-upload {
+  background: #0ea5e9;
+  color: white;
+}
+
 	
 	/* ===== MOBILE OPTIMIZE PATCH - v3.1 ===== */
 @media (max-width: 768px) {
@@ -223,6 +265,9 @@ header .user {
     <div class="tabs">
       <button class="tab active" data-tab="sheet1">🧾 Nhận hàng</button>
       <button class="tab" data-tab="sheet2">📊 Tải lên</button>
+	  <button id="btnSave" class="btn">💾 Lưu tạm</button>
+       <button id="btnUpload" class="btn">☁️ Upload</button>
+	   <button id="btnLoad" class="btn">🔎 Tìm kiếm</button>
     </div>
 
     <section id="sheet1" class="section active">
@@ -242,7 +287,7 @@ header .user {
         <div class="row">
           <input id="formNoInput" class="input" placeholder="Nhập / scan Form No (để trống = xem tất cả)" list="formList" />
           <datalist id="formList"></datalist>
-          <button id="btnLoad" class="btn">🔎 Tìm kiếm</button>
+          
 		  
 		  <div class="row" style="margin-top:8px;">
 		  
@@ -265,8 +310,7 @@ header .user {
           <input id="inpPalletCount" class="input mini-num" type="number" min="1" step="1" value="1" />
           <label>Pallet ID bắt đầu:</label>
           <input id="inpPalletStart" class="input mini-num" type="number" min="1" step="1" value="1" />
-          <button id="btnSave" class="btn">💾 Lưu tạm</button>
-          <button id="btnUpload" class="btn">☁️ Upload</button>
+          
         </div>
       </div>
 
