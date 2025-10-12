@@ -23,7 +23,7 @@
 <label>Subinventory: <input type="text" id="filterSubinventory" /></label>
   <label>Demand: <input type="text" id="filterDemand" /></label>
   <button onclick="exportData()">Export</button>
-<script type="module" src="loadHeader.js"></script>
+
   <script> 
     const { createClient } = supabase;
     const client = createClient(
@@ -111,5 +111,6 @@
       }
     }
   </script>
+	<script type="module" src="loadHeader.js"></script>
 </body>
 </html>
