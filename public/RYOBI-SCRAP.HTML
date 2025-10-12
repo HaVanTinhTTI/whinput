@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>RYOBI - RWH - SCRAP (Login + Tool)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{--bg:#f7f7f9;--card:#fff;--bd:#e5e7eb;--muted:#6b7280;--pri:#2563eb;--pri2:#1d4ed8}
+    *{box-sizing:border-box}
+    body{font-family:Arial,sans-serif;padding:12px;background:var(--bg);color:#111}
+    h1{text-align:center;margin:6px 0 12px}
+    .tabs{display:flex;gap:8px;margin-bottom:10px;position:sticky;top:0;background:var(--bg);padding:6px 0;z-index:5}
+    .tab{padding:10px 14px;border:1px solid var(--bd);border-radius:999px;cursor:pointer;background:#eef2ff}
+    .tab.active{background:var(--pri);color:#fff;border-color:transparent}
+    .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .input{flex:1;min-width:200px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px}
+    .mini{width:140px}.mini-num{width:120px;text-align:center}
+    .btn{padding:10px 14px;border:none;border-radius:8px;background:var(--pri);color:#fff;font-size:15px;cursor:pointer}
+    .btn:hover{background:var(--pri2)}.btn-ghost{background:#e2e8f0;color:#111;border:none}
+    .muted{color:var(--muted);font-size:13px}
+    .ok{color:#16a34a}.warn{color:#b45309}.error{color:#dc2626}
+    .table-wrap{overflow:auto;background:#fff;border:1px solid var(--bd);border-radius:10px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;text-align:center;border-bottom:1px solid #eee;white-space:nowrap}
+    thead th{position:sticky;top:0;background:#f1f5f9;z-index:1}
+    td[contenteditable="true"]{background:#fffbe6;cursor:text}
+    .empty{text-align:center;color:#888;padding:20px}
+    .footer{position:sticky;bottom:0;background:#fff;padding:10px;border:1px solid var(--bd);border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px}
+    .pill{background:#eef2ff;padding:6px 10px;border-radius:999px;font-size:13px;display:inline-block}.pill+.pill{margin-left:6px}
+    .section{display:none}.section.active{display:block}
+    .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+    .kpi{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;text-align:center}
+    .kpi .v{font-size:22px;font-weight:700}.kpi .t{font-size:12px;color:#6b7280}
+    .switch{display:inline-flex;align-items:center;gap:6px}.switch input{transform:scale(1.2)}
+    .h-scroll{max-width:360px;overflow:auto;white-space:nowrap}
+    @media(max-width:480px){.mini{width:48%}.mini-num{width:40%}.row .input{min-width:48%}}
+    .hicons{display:inline-flex;gap:6px;align-items:center}
+    .ico-btn{background:#e5e7eb;border-radius:6px;padding:2px 6px;font-size:12px;cursor:pointer;border:1px solid #d1d5db}
+    .ico-btn:hover{background:#dbeafe}
+
+    /* Login */
+    #loginBox{max-width:420px;margin:36px auto}
+    #mainTool{display:none}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .userbox{font-size:14px;background:#eef2ff;border:1px solid #dbeafe;padding:6px 10px;border-radius:999px}
+    .logout{padding:6px 10px;font-size:13px;margin-left:8px;background:#e2e8f0;color:#111;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer}
+  </style>
+</head>
+<body>
+
+  <!-- ============== LOGIN SCREEN ============== -->
+  <section id="loginBox" class="card">
+    <h1>Đăng nhập hệ thống</h1>
+    <label>User:</label>
+    <select id="userSelect" class="input">
+      <option value="">-- Chọn user --</option>
+      <option value="Tinh">Tinh</option>
+      <option value="Trung">Trung</option>
+      <option value="Lai">Lai</option>
+      <option value="Mi">Mi</option>
+    </select>
+
+    <label>Password:</label>
+    <input id="passwordInput" type="password" class="input" placeholder="Nhập mật khẩu..." />
+    <button id="btnLogin" class="btn">🔑 Đăng nhập</button>
+    <p class="muted" id="loginMsg" style="margin-top:8px;"></p>
+  </section>
+
+  <!-- ============== MAIN TOOL ============== -->
+  <section id="mainTool">
+    <div class="topbar">
+      <h1>RYOBI - RWH - SCRAP</h1>
+      <div class="userbox">👤 User: <b id="loginUser">-</b>
+        <button id="btnLogout" class="logout">Đăng xuất</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="sheet1">🧾 Nhận hàng</button>
+      <button class="tab" data-tab="sheet2">📊 Tải lên</button>
+    </div>
+
+    <section id="sheet1" class="section active">
+      <div class="card">
+        <div class="row">
+          <button id="btnSyncIn" class="btn-ghost">📥 Tải dữ liệu về máy</button>
+          <button id="btnViewCache" class="btn-ghost">📚 Xem cache</button>
+          <div class="switch" title="Bật = tự upload ngay sau Lưu tạm (nếu có mạng)">
+            <input type="checkbox" id="chkAutoUpload">
+            <label for="chkAutoUpload">Auto-Upload</label>
+          </div>
+        </div>
+        <div id="syncMsg" class="muted" style="margin-top:6px;">Chưa tải dữ liệu.</div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <input id="formNoInput" class="input" placeholder="Nhập / scan Form No (để trống = xem tất cả)" list="formList" />
+          <datalist id="formList"></datalist>
+          <button id="btnLoad" class="btn">🔎 Tìm kiếm</button>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <label>Type:</label>
+          <select id="selType" class="input mini">
+            <option value="">-- chọn --</option><option>CD</option><option>CE</option><option>SF</option><option>SCP</option>
+          </select>
+          <label>Team:</label>
+          <input id="inpTeam" class="input mini" placeholder="Nhập team..." />
+          <label>Số lượng Pallet:</label>
+          <input id="inpPalletCount" class="input mini-num" type="number" min="1" step="1" value="1" />
+          <label>Pallet ID bắt đầu:</label>
+          <input id="inpPalletStart" class="input mini-num" type="number" min="1" step="1" value="1" />
+          <button id="btnSave" class="btn">💾 Lưu tạm</button>
+          <button id="btnUpload" class="btn">☁️ Upload</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>
+                <div class="hicons">
+                  <span id="hiSelectAll" class="ico-btn" title="Chọn tất cả">✓ All</span>
+                  <span id="hiClearAll"  class="ico-btn" title="Bỏ chọn tất cả">✕ None</span>
+                </div>
+              </th>
+              <th>Form No</th>
+              <th>ItemCode</th>
+              <th>Qty</th>
+              <th>Remaining Qty</th>
+              <th>EHS VN Desc</th>
+              <th>EHS Type</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="8" class="empty">Chưa có dữ liệu. Bấm “Tìm kiếm”.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="footer">
+        <div>
+          <span class="pill">Form: <b id="metaForm">-</b></span>
+          <span class="pill">Số form: <b id="metaFormCount">0</b></span>
+          <span class="pill">Dòng: <b id="metaRows">0</b></span>
+          <span class="pill">Chọn: <b id="metaSel">0</b></span>
+        </div>
+        <div id="status" class="muted">🕓 Đang chờ thao tác...</div>
+      </div>
+    </section>
+
+    <section id="sheet2" class="section">
+      <div class="kpis">
+        <div class="kpi"><div class="v" id="kpiCacheForms">0</div><div class="t">Form trong Cache</div></div>
+        <div class="kpi"><div class="v" id="kpiCacheRows">0</div><div class="t">Dòng trong Cache</div></div>
+        <div class="kpi"><div class="v" id="kpiDraftBatches">0</div><div class="t">Lần Lưu tạm</div></div>
+        <div class="kpi"><div class="v" id="kpiDraftItems">0</div><div class="t">Bản ghi chờ Upload</div></div>
+        <div class="kpi"><div class="v" id="kpiAutoUpload">OFF</div><div class="t">Auto-Upload</div></div>
+      </div>
+
+      <div class="card" style="margin-top:10px;">
+        <div class="row" style="justify-content:space-between;">
+          <div class="muted" id="lastSyncTxt">Lần sync gần nhất: -</div>
+          <div class="row">
+            <button id="btnUploadFromDash" class="btn">☁️ Upload tất cả</button>
+            <button id="btnClearDrafts" class="btn-ghost">🧹 Xóa drafts</button>
+            <button id="btnClearCache" class="btn-ghost">🗑️ Xóa cache</button>
+          </div>
+        </div>
+        <div class="table-wrap" style="margin-top:8px;">
+          <table>
+            <thead><tr><th>#Batch</th><th>Saved at</th><th>Số dòng</th><th>Actions</th></tr></thead>
+            <tbody id="draftBody"><tr><td colspan="4" class="empty">Chưa có dữ liệu Lưu tạm.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </section>
+
+<script>
+/* ========== LOGIN ========== */
+
+const USERS = { "Tinh":"1234", "Trung":"abcd", "Lai":"1234", "Mi":"1234" };
+const loginBox = document.getElementById('loginBox');
+const mainTool = document.getElementById('mainTool');
+const userSelect = document.getElementById('userSelect');
+const passwordInput = document.getElementById('passwordInput');
+const loginMsg = document.getElementById('loginMsg');
+const loginUserEl = document.getElementById('loginUser');
+const btnLogout = document.getElementById('btnLogout');
+
+function getLoginUser(){ return localStorage.getItem('wh_user') || null; }
+function showTool(user){ loginBox.style.display='none'; mainTool.style.display='block'; loginUserEl.textContent=user; }
+function showLogin(){ loginBox.style.display='block'; mainTool.style.display='none'; userSelect.value=''; passwordInput.value=''; }
+
+document.getElementById('btnLogin').addEventListener('click', ()=>{
+  const u=userSelect.value.trim(), p=passwordInput.value.trim();
+  if(!u){ loginMsg.textContent='⚠️ Vui lòng chọn user.'; return; }
+  if(!p){ loginMsg.textContent='⚠️ Nhập mật khẩu.'; return; }
+  if(USERS[u] && USERS[u]===p){ localStorage.setItem('wh_user',u); showTool(u); }
+  else loginMsg.textContent='❌ Sai user hoặc mật khẩu.';
+});
+btnLogout.addEventListener('click', ()=>{ if(confirm('Đăng xuất?')){ localStorage.removeItem('wh_user'); showLogin(); }});
+localStorage.removeItem('wh_user');
+showLogin();
+
+
+/* ========== Supabase & constants (GIỮ NGUYÊN BẢN CHÍNH) ========== */
+const supabaseUrl = 'https://chjqassbtcqthueeddou.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoanFhc3NidGNxdGh1ZWVkZG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzY2OTgsImV4cCI6MjA3NTcxMjY5OH0.FbWGSw9sqUkb2_ppErN4QTFGy1Cho-HX4XbR5_-KB0I';
+const client = supabase.createClient(supabaseUrl, supabaseKey);
+
+const SOURCE_TABLE  = 'K2_Master';
+const SOURCE_FIELDS = 'form_no,ItemCode,Quantity,"Remaining Qty",EHS_VN_description,EHS_Type,printed_at,receipt_date_time';
+const RECEIPT_TABLE = 'Receipt_logs';
+
+const LS_CACHE   = 'cache_k2_master_test';
+const LS_DRAFTS  = 'drafts_k2_receipt';
+const LS_LASTSYNC= 'cache_k2_last_sync';
+const LS_AUTOUPL = 'receipt_autoupload';
+
+/* ========== (MỚI) MAP CỘT Receipt_logs (thêm received_by) ========== */
+const RECEIPT_SCHEMA = 'k2style';
+const RECEIPT_MAPS = {
+  k2style: {
+    form_no: 'form_no',
+    item_code: 'ItemCode',
+    remaining_qty: 'Remaining Qty',
+    ehs_vn_description: 'ehs_vn_description',
+    ehs_type: 'ehs_type',
+    type: 'type',
+    team: 'team',
+    pallet_seq: 'pallet_seq',
+    pallet_id: 'pallet_id',
+    created_at: 'created_at',
+    received_by: 'received_by'   // <— thêm
+  },
+  snake: {
+    form_no: 'form_no',
+    item_code: 'item_code',
+    remaining_qty: 'remaining_qty',
+    ehs_vn_description: 'ehs_vn_description',
+    ehs_type: 'ehs_type',
+    type: 'type',
+    team: 'team',
+    pallet_seq: 'pallet_seq',
+    pallet_id: 'pallet_id',
+    created_at: 'created_at',
+    received_by: 'received_by'
+  }
+};
+const COL = RECEIPT_MAPS[RECEIPT_SCHEMA];
+
+/* ========== Elements (ID giữ nguyên) ========== */
+const syncMsg      = document.getElementById('syncMsg');
+const formNoInput  = document.getElementById('formNoInput');
+const formList     = document.getElementById('formList');
+const tbody        = document.getElementById('tbody');
+const statusEl     = document.getElementById('status');
+const metaForm     = document.getElementById('metaForm');
+const metaFormCount= document.getElementById('metaFormCount');
+const metaRows     = document.getElementById('metaRows');
+const metaSel      = document.getElementById('metaSel');
+const selType      = document.getElementById('selType');
+const inpTeam      = document.getElementById('inpTeam');
+const inpPalletCnt = document.getElementById('inpPalletCount');
+const inpPalletStart = document.getElementById('inpPalletStart');
+const chkAutoUpload= document.getElementById('chkAutoUpload');
+const hiSelectAll  = document.getElementById('hiSelectAll');
+const hiClearAll   = document.getElementById('hiClearAll');
+const kpiCacheForms= document.getElementById('kpiCacheForms');
+const kpiCacheRows = document.getElementById('kpiCacheRows');
+const kpiDraftBatches=document.getElementById('kpiDraftBatches');
+const kpiDraftItems= document.getElementById('kpiDraftItems');
+const kpiAutoUpload= document.getElementById('kpiAutoUpload');
+const draftBody    = document.getElementById('draftBody');
+const lastSyncTxt  = document.getElementById('lastSyncTxt');
+
+/* ========== State ========== */
+let currentRows = [];
+let currentForms = [];
+let seqCounter = 0;
+
+/* ========== Helpers ========== */
+const nowISO = ()=>{ const n=new Date(); n.setHours(n.getHours()+7); return n.toISOString(); };
+function nowVNString(){ const n=new Date(); n.setHours(n.getHours()+7); return n.toISOString().replace('T',' ').replace('Z','').slice(0,19); }
+function setCache(map){ localStorage.setItem(LS_CACHE, JSON.stringify(map||{})); }
+function getCache(){ try{ return JSON.parse(localStorage.getItem(LS_CACHE)||'{}'); }catch{ return {}; } }
+function getDrafts(){ try{ return JSON.parse(localStorage.getItem(LS_DRAFTS)||'[]'); }catch{ return []; } }
+function setDrafts(arr){ localStorage.setItem(LS_DRAFTS, JSON.stringify(arr||[])); }
+function setLastSync(){ localStorage.setItem(LS_LASTSYNC, nowISO()); }
+function getLastSync(){ return localStorage.getItem(LS_LASTSYNC) || '-'; }
+function refreshFormSuggestions(){ const forms=Object.keys(getCache()).sort(); formList.innerHTML=forms.map(fn=>`<option value="${fn}"></option>`).join(''); }
+function makeRowKey(r){ return [r.form_no,r.ItemCode,r.Quantity,r.EHS_Type,r.EHS_VN_description].map(x=>String(x??'')).join('|'); }
+
+/* ========== Dashboard Refresh ========== */
+function refreshDashboard(){
+  const cache=getCache(); const forms=Object.keys(cache);
+  const rowsCount=forms.reduce((a,f)=>a+(cache[f]?.length||0),0);
+  const drafts=getDrafts();
+  const draftItems=drafts.reduce((a,b)=>a+((b.items||[]).length),0);
+  kpiCacheForms.textContent=forms.length;
+  kpiCacheRows.textContent=rowsCount;
+  kpiDraftBatches.textContent=drafts.length;
+  kpiDraftItems.textContent=draftItems;
+  kpiAutoUpload.textContent=isAutoUploadOn()?'ON':'OFF';
+  lastSyncTxt.textContent='Lần sync gần nhất: '+getLastSync();
+
+  if(drafts.length===0){
+    draftBody.innerHTML = `<tr><td colspan="4" class="empty">Chưa có dữ liệu Lưu tạm.</td></tr>`;
+  }else{
+    draftBody.innerHTML='';
+    drafts.forEach((d,idx)=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${idx+1}</td><td>${d.saved_at}</td><td>${(d.items||[]).length}</td>
+        <td><button class="btn-ghost" data-act="uploadOne" data-idx="${idx}">☁️ Upload</button>
+            <button class="btn-ghost" data-act="delOne" data-idx="${idx}">🗑️ Xóa</button></td>`;
+      draftBody.appendChild(tr);
+    });
+    draftBody.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const idx=+btn.dataset.idx; const act=btn.dataset.act;
+        if(act==='delOne'){ const d=getDrafts(); d.splice(idx,1); setDrafts(d); refreshDashboard(); }
+        else if(act==='uploadOne'){ await uploadDraftIndex(idx); refreshDashboard(); }
+      });
+    });
+  }
+}
+
+/* ========== Tabs ========== */
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab==='sheet2') refreshDashboard();
+  });
+});
+
+/* ========== Auto-Upload ========== */
+function isAutoUploadOn(){ return localStorage.getItem(LS_AUTOUPL)==='1'; }
+function setAutoUpload(on){ localStorage.setItem(LS_AUTOUPL,on?'1':'0'); chkAutoUpload.checked=on; kpiAutoUpload.textContent=on?'ON':'OFF'; }
+chkAutoUpload.addEventListener('change', ()=> setAutoUpload(chkAutoUpload.checked));
+setAutoUpload(isAutoUploadOn());
+
+/* ========== 1) Sync In ========== */
+document.getElementById('btnSyncIn').addEventListener('click', async ()=>{
+  syncMsg.textContent='⏳ Đang tải dữ liệu từ K2_Master...';
+  try{
+    const { data, error } = await client
+      .from(SOURCE_TABLE)
+      .select(SOURCE_FIELDS)
+      .not('printed_at','is',null)
+      .is('receipt_date_time',null);
+    if(error) throw error;
+
+    if(!data || !data.length){
+      setCache({}); setLastSync();
+      syncMsg.innerHTML='<span class="warn">⚠️ Không có dòng nào thỏa điều kiện.</span>';
+      refreshFormSuggestions(); refreshDashboard(); return;
+    }
+
+    const map={};
+    data.forEach(r=>{ if(!map[r.form_no]) map[r.form_no]=[]; r._key=makeRowKey(r); map[r.form_no].push(r); });
+    setCache(map); setLastSync();
+    syncMsg.innerHTML=`<span class="ok">✅ Đã tải ${Object.keys(map).length} form_no (lưu offline).</span>`;
+    refreshFormSuggestions(); refreshDashboard();
+  }catch(err){
+    console.error(err);
+    syncMsg.innerHTML=`<span class="error">❌ Lỗi tải dữ liệu: ${err.message||err}</span>`;
+  }
+});
+document.getElementById('btnViewCache').addEventListener('click', ()=>{
+  const cache=getCache(); const forms=Object.keys(cache);
+  const rows=forms.reduce((a,f)=>a+(cache[f]?.length||0),0);
+  alert(forms.length?`📚 Cache: ${forms.length} form_no, ${rows} dòng.`:'📭 Cache trống.');
+});
+
+/* ========== 2) Tìm kiếm (trống = tất cả) + autocomplete ========== */
+formNoInput.addEventListener('input', ()=>{
+  const cache=getCache(); const q=formNoInput.value.trim().toUpperCase();
+  const forms=Object.keys(cache).filter(fn=>!q||fn.toUpperCase().includes(q)).slice(0,200);
+  formList.innerHTML=forms.map(fn=>`<option value="${fn}"></option>`).join('');
+});
+document.getElementById('btnLoad').addEventListener('click', ()=>{
+  const cache=getCache(); const q=formNoInput.value.trim(); let rows=[];
+  if(!q){ Object.keys(cache).forEach(fn=>(cache[fn]||[]).forEach(r=>rows.push(r))); currentForms=Object.keys(cache); }
+  else { rows=cache[q]||[]; currentForms=rows.length?[q]:[]; }
+
+  if(!rows.length){
+    tbody.innerHTML=`<tr><td colspan="8" class="empty">${q?`Không tìm thấy Form No: ${q}`:'Cache trống. Hãy bấm “Tải dữ liệu về máy”.'}</td></tr>`;
+    updateMeta([],[]); return;
+  }
+
+  rows.forEach(r=>{ if(!r._key) r._key=makeRowKey(r); });
+  rows.sort((a,b)=> String(a.ItemCode).localeCompare(String(b.ItemCode),'en',{numeric:true}));
+  seqCounter=0;
+  currentRows=rows.map(r=>({...r,seq:++seqCounter,selected:false}));
+  renderTable(); updateMeta(currentRows,currentForms);
+  statusEl.textContent=`✅ Tải ${currentRows.length} dòng (${currentForms.length} form)`;
+});
+formNoInput.addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('btnLoad').click(); });
+
+/* ========== Render + Bind ========== */
+function renderTable(){
+  tbody.innerHTML='';
+  if(!currentRows.length){ tbody.innerHTML=`<tr><td colspan="8" class="empty">Danh sách trống.</td></tr>`; return; }
+  currentRows.forEach((r,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.seq}</td>
+      <td><input type="checkbox" class="row-check" ${r.selected?'checked':''}></td>
+      <td>${r.form_no??''}</td>
+      <td>${r.ItemCode??''}</td>
+      <td>${r.Quantity??''}</td>
+      <td contenteditable="true">${r["Remaining Qty"]??''}</td>
+      <td class="h-scroll">${r.EHS_VN_description??''}</td>
+      <td>${r.EHS_Type??''}</td>`;
+    tbody.appendChild(tr);
+  });
+  bindEvents();
+}
+function bindEvents(){
+  tbody.querySelectorAll('.row-check').forEach((cb,i)=>{
+    cb.addEventListener('change', e=>{ currentRows[i].selected=e.target.checked; updateMeta(currentRows,currentForms); });
+  });
+  tbody.querySelectorAll('td[contenteditable="true"]').forEach((cell,i)=>{
+    cell.addEventListener('input', e=>{
+      const val=e.target.innerText.trim();
+      currentRows[i]["Remaining Qty"]=val;
+      const cache=getCache(); const f=currentRows[i].form_no;
+      if(cache[f]){
+        const idx=cache[f].findIndex(x=> (x._key||makeRowKey(x))===currentRows[i]._key);
+        if(idx>-1){ cache[f][idx]["Remaining Qty"]=val; setCache(cache); }
+      }
+    });
+  });
+}
+hiSelectAll.addEventListener('click', ()=>{ currentRows.forEach(r=>r.selected=true); renderTable(); updateMeta(currentRows,currentForms); });
+hiClearAll.addEventListener('click', ()=>{ currentRows.forEach(r=>r.selected=false); renderTable(); updateMeta(currentRows,currentForms); });
+
+/* ========== Meta footer ========== */
+function updateMeta(rows,forms){
+  metaForm.textContent=(forms.length===0)?'-':(forms.length===1?forms[0]:'Tất cả');
+  metaFormCount.textContent=forms.length;
+  metaRows.textContent=rows.length;
+  metaSel.textContent=rows.filter(r=>r.selected).length;
+}
+
+/* ========== Validate header ========== */
+function validateHeader(){
+  const type=selType.value.trim();
+  const team=inpTeam.value.trim();
+  const palletCnt=Number(inpPalletCnt.value);
+  const palletStart=Number(inpPalletStart.value);
+  if(!type) return {ok:false,msg:'Chưa chọn Type.'};
+  if(!team) return {ok:false,msg:'Chưa nhập Team.'};
+  if(!Number.isInteger(palletCnt)||palletCnt<1) return {ok:false,msg:'Số lượng Pallet phải ≥ 1.'};
+  if(!Number.isInteger(palletStart)||palletStart<1) return {ok:false,msg:'Pallet ID bắt đầu phải ≥ 1.'};
+  return {ok:true,type,team,palletCnt,palletStart};
+}
+
+/* ========== Lưu tạm (nhân theo pallet) ========== */
+document.getElementById('btnSave').addEventListener('click', async ()=>{
+  const picked=currentRows.filter(r=>r.selected);
+  if(!picked.length) return alert('Chưa chọn dòng nào.');
+  const v=validateHeader(); if(!v.ok) return alert(v.msg);
+
+  const records=[];
+  for(const r of picked){
+    const rem=(r["Remaining Qty"]??'').toString().trim();
+    for(let i=0;i<v.palletCnt;i++){
+      records.push({
+        form_no: r.form_no,
+        item_code: r.ItemCode,
+        remaining_qty: rem || null,
+        type: v.type,
+        team: v.team,
+        pallet_seq: i+1,
+        pallet_id: v.palletStart + i,
+        created_at: nowVNString(),
+        status: 'pending'
+      });
+    }
+  }
+  const drafts=getDrafts(); drafts.push({saved_at:nowISO(),items:records}); setDrafts(drafts);
+  removePickedFromUIAndCache(picked);
+  statusEl.textContent=`💾 Lưu tạm ${records.length} bản ghi & đã loại khỏi danh sách.`;
+  refreshDashboard();
+
+  if(isAutoUploadOn() && navigator.onLine){
+    await uploadAllDrafts(); refreshDashboard();
+    statusEl.textContent='☁️ Auto-Upload xong.';
+  }
+});
+function removePickedFromUIAndCache(picked){
+  const keys=new Set(picked.map(p=>p._key));
+  currentRows=currentRows.filter(r=>!keys.has(r._key));
+  currentRows.forEach((r,i)=>r.seq=i+1);
+  renderTable(); updateMeta(currentRows,currentForms);
+
+  const cache=getCache();
+  Object.keys(cache).forEach(fn=>{
+    cache[fn]=(cache[fn]||[]).filter(r=>(r._key||makeRowKey(r))&&!keys.has(r._key||makeRowKey(r)));
+    if(cache[fn].length===0) delete cache[fn];
+  });
+  setCache(cache); refreshFormSuggestions();
+}
+
+/* ========== Upload helpers (Final Clean) ========== */
+function _chunk(arr,size){ const out=[]; for(let i=0;i<arr.length;i+=size) out.push(arr.slice(i,i+size)); return out; }
+
+// Chuẩn hóa base — chèn received_by = user đăng nhập (hoặc 'system' nếu chưa có)
+function _normalizeBase(x){
+  return {
+    form_no: String(x.form_no ?? '').trim(),
+    item_code: String(x.item_code ?? '').trim(),
+    remaining_qty: (x.remaining_qty===''||x.remaining_qty==null) ? null : String(x.remaining_qty).trim(),
+    type: x.type ?? null,
+    team: x.team ?? null,
+    pallet_seq: Number(x.pallet_seq ?? 1),
+    pallet_id: Number(x.pallet_id ?? 1),
+    created_at: x.created_at ?? nowVNString(),
+    received_by: getLoginUser() || 'system'
+  };
+}
+
+// Map sang tên cột thực tế trên Receipt_logs (đÃ thêm received_by)
+function _toDbRow(x){
+  const r=_normalizeBase(x);
+  return {
+    [COL.form_no]: r.form_no,
+    [COL.item_code]: r.item_code,
+    [COL.remaining_qty]: r.remaining_qty,
+    [COL.type]: r.type,
+    [COL.team]: r.team,
+    [COL.pallet_seq]: r.pallet_seq,
+    [COL.pallet_id]: r.pallet_id,
+    [COL.created_at]: r.created_at,
+    [COL.received_by]: r.received_by
+  };
+}
+
+// Chỉ cho phép các cột này (khớp tên thực trong DB)
+const ALLOWED_RECEIPT_COLUMNS = [
+  'form_no','ItemCode','Remaining Qty','type','team','pallet_seq','pallet_id','created_at','received_by'
+];
+
+function sanitizePayload(items){
+  return items.map(obj=>{
+    const clean={};
+    for(const k of ALLOWED_RECEIPT_COLUMNS){
+      if(Object.prototype.hasOwnProperty.call(obj,k)) clean[k]=obj[k];
+    }
+    return clean;
+  });
+}
+
+const DEBUG_UPLOAD=true;
+
+async function uploadReceiptLogs(items){
+  if(!Array.isArray(items)||items.length===0) return {ok:true,inserted:0};
+  const payload=sanitizePayload(items.map(_toDbRow));
+
+  let batchSize=500, inserted=0, lastErr=null;
+  while(batchSize>=50){
+    try{
+      const batches=_chunk(payload,batchSize);
+      for(const b of batches){
+        const opts={ returning: DEBUG_UPLOAD ? 'representation' : 'minimal' };
+        const { error, status } = await client.from(RECEIPT_TABLE).insert(b,opts);
+        if(error){ if(DEBUG_UPLOAD) console.error('Receipt_logs insert error:',{status,error,batchSize,sample:b[0]}); throw error; }
+        if(DEBUG_UPLOAD) console.log('Inserted batch:',{status,count:b.length});
+        inserted+=b.length;
+      }
+      return {ok:true,inserted};
+    }catch(e){
+      console.warn('uploadReceiptLogs batchSize',batchSize,'error:',e?.message||e);
+      lastErr=e; batchSize=Math.floor(batchSize/2);
+    }
+  }
+  throw new Error(`Upload Receipt_logs thất bại sau nhiều lần thử: ${lastErr?.message||lastErr}`);
+}
+
+async function uploadAllDrafts(){
+  const drafts=getDrafts(); if(!drafts.length) return {success:0,fail:0};
+  const allItems=drafts.flatMap(d=>d.items||[]); if(!allItems.length) return {success:0,fail:0};
+  try{
+    const res=await uploadReceiptLogs(allItems);
+    if(res.ok){ setDrafts([]); statusEl.textContent=`☁️ Upload Receipt_logs: ${res.inserted} bản ghi OK.`; return {success:res.inserted,fail:0}; }
+    else { statusEl.textContent='❌ Upload lỗi (không rõ).'; return {success:0,fail:allItems.length}; }
+  }catch(e){
+    console.error('Upload Receipt_logs lỗi:',e);
+    alert('Upload lỗi: '+(e.message||e));
+    statusEl.textContent=`❌ Upload lỗi: ${e.message||e}`;
+    return {success:0,fail:allItems.length};
+  }
+}
+
+async function uploadDraftIndex(idx){
+  const drafts=getDrafts(); const d=drafts[idx]; if(!d) return;
+  const items=(d.items||[]); if(!items.length) return;
+  try{
+    const res=await uploadReceiptLogs(items);
+    if(res.ok){ drafts.splice(idx,1); setDrafts(drafts); statusEl.textContent=`☁️ Upload batch #${idx+1} OK (${res.inserted}).`; }
+    else{ statusEl.textContent=`❌ Upload batch #${idx+1} lỗi.`; }
+  }catch(e){ console.error(e); alert('Upload lỗi: '+(e.message||e)); }
+}
+
+/* ========== Upload thủ công & Dashboard buttons ========== */
+document.getElementById('btnUpload').addEventListener('click', async ()=>{
+  if(!navigator.onLine) return alert('Không có mạng.');
+  if(!getDrafts().length) return alert('Không có dữ liệu lưu tạm.');
+  await uploadAllDrafts(); refreshDashboard();
+  currentRows=[]; renderTable(); updateMeta(currentRows,currentForms);
+});
+document.getElementById('btnUploadFromDash').addEventListener('click', async ()=>{
+  if(!navigator.onLine) return alert('Không có mạng.');
+  if(!getDrafts().length) return alert('Không có dữ liệu lưu tạm.');
+  await uploadAllDrafts(); refreshDashboard();
+});
+document.getElementById('btnClearDrafts').addEventListener('click', ()=>{
+  if(confirm('Xóa tất cả drafts lưu tạm?')){ setDrafts([]); refreshDashboard(); }
+});
+document.getElementById('btnClearCache').addEventListener('click', ()=>{
+  if(confirm('Xóa toàn bộ cache?')){ setCache({}); refreshFormSuggestions(); refreshDashboard(); }
+});
+
+/* khởi tạo */
+refreshFormSuggestions(); refreshDashboard();
+</script>
+</body>
+</html>
