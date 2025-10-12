@@ -1,24 +1,5 @@
-@media (max-width: 768px) {
-  .sidebar {
-    width: 180px;
-  }
-  #page-content {
-    margin-left: 180px;
-    margin-top: 70px;
-    padding: 12px;
-  }
-}
-@media (max-width: 1024px) {
-  .sidebar {
-    width: 60px;
-  }
-  .sidebar:hover {
-    width: 200px;
-  }
-}
-
 <style>
-/* ===== HEADER (Fixed for all pages) ===== */
+/* ===== HEADER ===== */
 .header {
   position: fixed;
   top: 0;
@@ -39,38 +20,50 @@
 .header .logo-left img { height: 45px; }
 .header .title {
   flex: 1; text-align: center; color: #fff;
-  font-size: 22px; font-weight: bold; letter-spacing: 1px;
-  text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+  font-size: 22px; font-weight: bold;
+  letter-spacing: 1px; text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
 }
 .header .logo-right img { height: 45px; }
 
-/* ===== SIDEBAR ===== */
-
-/* ===== COLLAPSIBLE SIDEBAR ===== */
+/* ===== DRAWER SIDEBAR ===== */
 .sidebar {
   position: fixed;
   top: 60px;
-  left: 0;
-  width: 60px;
+  left: -220px; /* Ẩn hoàn toàn */
+  width: 220px;
   height: calc(100% - 60px);
-  background-color: #f4f4f4;
+  background: #f4f4f4;
   border-right: 2px solid #ccc;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.15);
   box-sizing: border-box;
   font-family: Tahoma, sans-serif;
   overflow-y: auto;
-  transition: width 0.3s ease, box-shadow 0.3s ease;
-  z-index: 10; /* thêm dòng này */
+  transition: left 0.3s ease;
+  z-index: 1001;
 }
 
-
-/* Khi rê chuột vào thì mở rộng */
-.sidebar:hover {
-  width: 220px;
-  box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+/* Khi hover trigger → mở sidebar */
+.sidebar:hover,
+.sidebar-trigger:hover + .sidebar {
+  left: 0;
 }
 
-/* Khi sidebar thu gọn, ẩn text, chỉ hiện icon */
-.sidebar ul li a {
+/* Trigger zone bên trái màn hình */
+.sidebar-trigger {
+  position: fixed;
+  top: 60px;
+  left: 0;
+  width: 20px;
+  height: calc(100% - 60px);
+  z-index: 1000;
+  background: transparent;
+}
+
+/* Menu style */
+.sidebar h3 { margin-top: 0; }
+.tree-menu { list-style: none; padding-left: 10px; margin: 0; }
+.tree-menu li { margin: 8px 0; }
+.tree-menu a {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -78,78 +71,58 @@
   color: #333;
   text-decoration: none;
   border-radius: 6px;
-  white-space: nowrap;
-  overflow: hidden;
   transition: background 0.2s;
+  white-space: nowrap;
 }
-
-.sidebar ul li a:hover {
+.tree-menu a:hover {
   background: #e0e0e0;
   color: #1976d2;
 }
 
-/* Ẩn phần text khi sidebar chưa hover */
-.sidebar:not(:hover) a span {
-  display: none;
-}
-
-/* Căn chỉnh icon */
-.sidebar a::before {
-  font-size: 16px;
-}
-
-/* Điều chỉnh header-content khi sidebar thay đổi */
+/* ===== PAGE CONTENT ===== */
 #page-content {
-  margin-left: 60px;
-  transition: margin-left 0.3s ease;
+  margin-top: 80px;
+  margin-left: 0;
+  padding: 24px;
+  transition: filter 0.3s ease;
+  background: #f9f9f9;
+  min-height: calc(100vh - 80px);
+  box-sizing: border-box;
 }
 
-.sidebar:hover ~ #page-content {
-  margin-left: 220px;
+/* Khi sidebar mở, làm mờ nhẹ nội dung */
+.sidebar:hover ~ #page-content,
+.sidebar-trigger:hover ~ #page-content {
+  filter: brightness(0.95);
 }
-
-
-  
-.tree-menu { list-style: none; padding-left: 0; margin: 0; }
-.tree-menu li { margin: 5px 0; }
-.tree-menu a {
-  display: block; padding: 6px 8px;
-  color: #333; text-decoration: none; border-radius: 6px;
-}
-.tree-menu a:hover { background: #e0e0e0; color: #1976d2; }
 
 /* ===== FOOTER ===== */
 #footer-wrapper {
-  width:100%; background-color:#f2f2f2; padding:10px 0;
-  border-top:2px solid #ccc; text-align:left;
-  position:fixed; bottom:0; left:0;
+  width: 100%;
+  background-color: #f2f2f2;
+  padding: 10px 0;
+  border-top: 2px solid #ccc;
+  text-align: left;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  z-index: 900;
 }
-.footercuahang { margin-left:10px; font-family:Tahoma, sans-serif; }
-
-/* ===== MAIN CONTENT OFFSET ===== */
-main#page-content {
-  margin-left: 240px; /* chừa sidebar */
-  margin-top: 80px;  /* chừa header */
-  padding: 18px;
+.footercuahang {
+  margin-left: 10px;
   font-family: Tahoma, sans-serif;
-  background: #f7f7f7;
+  font-size: 13px;
+  color: #333;
 }
 
-  /* ===== MAIN CONTENT SAFE ZONE ===== */
-#page-content {
-  position: relative;
-  margin-left: 240px;  /* chừa chỗ cho sidebar */
-  margin-top: 80px;    /* chừa chỗ cho header */
-  padding: 20px;
-  background: #f9f9f9;
-  min-height: calc(100vh - 100px); /* đảm bảo không bị footer đè */
-  box-sizing: border-box;
-  z-index: 0;
+/* ===== Responsive mobile ===== */
+@media (max-width: 768px) {
+  .sidebar { width: 180px; left: -180px; }
+  .sidebar:hover, .sidebar-trigger:hover + .sidebar { left: 0; }
 }
-
 </style>
 
-<!-- HEADER -->
+<!-- ===== HEADER ===== -->
 <div class="header">
   <div class="logo-left">
     <img src="https://meixnbjwoifzltvdnykn.supabase.co/storage/v1/object/public/Image/LOGO%20RYOBI.png" alt="RYOBI">
@@ -160,23 +133,26 @@ main#page-content {
   </div>
 </div>
 
-<!-- SIDEBAR -->
+<!-- Trigger zone -->
+<div class="sidebar-trigger"></div>
+
+<!-- ===== SIDEBAR ===== -->
 <div class="sidebar">
   <h3>Navigation</h3>
   <ul class="tree-menu">
-    <li><a href="https://whinput.vercel.app/menu.html" target="_blank">🏠 <span>Home</span></a></li>
-    <li><a href="https://whinput.vercel.app/form.html" target="_blank">🧾 <span>Update K2 Master</span></a></li>
-    <li><a href="https://whinput.vercel.app/PrintQR.html" target="_blank">🖨️ <span>Print QR</span></a></li>
-    <li><a href="https://whinput.vercel.app/RYOBISCRAP.html" target="_blank">📥 <span>Receiving</span></a></li>
-    <li><a href="#">👤 <span>User</span></a></li>
-    <li><a href="#">📦 <span>Inventory</span></a></li>
-    <li><a href="#">📊 <span>Reports</span></a></li>
+    <li><a href="https://whinput.vercel.app/menu.html" target="_blank">🏠 Home</a></li>
+    <li><a href="https://whinput.vercel.app/form.html" target="_blank">🧾 Update K2 Master</a></li>
+    <li><a href="https://whinput.vercel.app/PrintQR.html" target="_blank">🖨️ Print QR</a></li>
+    <li><a href="https://whinput.vercel.app/RYOBISCRAP.html" target="_blank">📥 Receiving</a></li>
+    <li><a href="#">👤 User</a></li>
+    <li><a href="#">📦 Inventory</a></li>
+    <li><a href="#">📊 Reports</a></li>
   </ul>
 </div>
 
-<!-- FOOTER -->
+<!-- ===== FOOTER ===== -->
 <div id="footer-wrapper">
   <div class="footercuahang">
-    <p style="font-size:1vw; margin: 0;">Contact: Ha Van Tinh (VN.OP-SC-WH) / Smile Dinh Thanh Trung (VN.OP-WH)</p>
+    Contact: Ha Van Tinh (VN.OP-SC-WH) / Smile Dinh Thanh Trung (VN.OP-WH)
   </div>
 </div>
