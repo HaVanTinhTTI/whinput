@@ -36,18 +36,70 @@
 .header .logo-right img { height: 45px; }
 
 /* ===== SIDEBAR ===== */
+
+/* ===== COLLAPSIBLE SIDEBAR ===== */
 .sidebar {
   position: fixed;
-  top: 60px; left: 0;
-  width: 220px;
+  top: 60px;
+  left: 0;
+  width: 60px; /* thu gọn mặc định */
   height: calc(100% - 60px);
   background-color: #f4f4f4;
   border-right: 2px solid #ccc;
-  padding: 20px;
   box-sizing: border-box;
   font-family: Tahoma, sans-serif;
   overflow-y: auto;
+  transition: width 0.3s ease, box-shadow 0.3s ease;
+  z-index: 999;
 }
+
+/* Khi rê chuột vào thì mở rộng */
+.sidebar:hover {
+  width: 220px;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+}
+
+/* Khi sidebar thu gọn, ẩn text, chỉ hiện icon */
+.sidebar ul li a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  color: #333;
+  text-decoration: none;
+  border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: background 0.2s;
+}
+
+.sidebar ul li a:hover {
+  background: #e0e0e0;
+  color: #1976d2;
+}
+
+/* Ẩn phần text khi sidebar chưa hover */
+.sidebar:not(:hover) a span {
+  display: none;
+}
+
+/* Căn chỉnh icon */
+.sidebar a::before {
+  font-size: 16px;
+}
+
+/* Điều chỉnh header-content khi sidebar thay đổi */
+#page-content {
+  margin-left: 60px;
+  transition: margin-left 0.3s ease;
+}
+
+.sidebar:hover ~ #page-content {
+  margin-left: 220px;
+}
+
+
+  
 .tree-menu { list-style: none; padding-left: 0; margin: 0; }
 .tree-menu li { margin: 5px 0; }
 .tree-menu a {
@@ -102,13 +154,13 @@ main#page-content {
 <div class="sidebar">
   <h3>Navigation</h3>
   <ul class="tree-menu">
-    <li><a href="https://whinput.vercel.app/menu.html" target="_blank">🏠 Home</a></li>
-    <li><a href="https://whinput.vercel.app/form.html" target="_blank">🧾 Update K2 Master</a></li>
-    <li><a href="https://whinput.vercel.app/PrintQR.html" target="_blank">🖨️ Print QR</a></li>
-    <li><a href="https://whinput.vercel.app/RYOBISCRAP.html" target="_blank">📥 Receiving</a></li>
-    <li><a href="#">👤 User</a></li>
-    <li><a href="#">📦 Inventory</a></li>
-    <li><a href="#">📊 Reports</a></li>
+    <li><a href="https://whinput.vercel.app/menu.html" target="_blank">🏠 <span>Home</span></a></li>
+    <li><a href="https://whinput.vercel.app/form.html" target="_blank">🧾 <span>Update K2 Master</span></a></li>
+    <li><a href="https://whinput.vercel.app/PrintQR.html" target="_blank">🖨️ <span>Print QR</span></a></li>
+    <li><a href="https://whinput.vercel.app/RYOBISCRAP.html" target="_blank">📥 <span>Receiving</span></a></li>
+    <li><a href="#">👤 <span>User</span></a></li>
+    <li><a href="#">📦 <span>Inventory</span></a></li>
+    <li><a href="#">📊 <span>Reports</span></a></li>
   </ul>
 </div>
 
