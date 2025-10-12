@@ -226,7 +226,62 @@ header .user {
     .logout{padding:6px 10px;font-size:13px;margin-left:8px;background:#e2e8f0;color:#111;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer}
   
   
-  
+  /* === HEADER (TOPBAR) === */
+.topbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+
+  padding: 10px 12px;
+  border-radius: 0 0 14px 14px;
+}
+
+.topbar .title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: 0.3px;
+  margin-bottom: 6px;
+}
+
+.userbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #334155;
+}
+
+.userbox .user-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.logout {
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logout:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
   
   
   
@@ -255,12 +310,14 @@ header .user {
   <!-- ============== MAIN TOOL ============== -->
   <section id="mainTool">
     <div class="topbar">
-      <h1 style="font-size:20px;">📦 RYOBI – RWH – SCRAP (Mobile)</h1>
+  <div class="title">📦 RYOBI – RWH – SCRAP (Mobile)</div>
 
-      <div class="userbox">👤 User: <b id="loginUser">-</b>
-        <button id="btnLogout" class="logout">Đăng xuất</button>
-      </div>
-    </div>
+  <div class="userbox">
+    <span class="user-info">👤 <b id="loginUser">Tinh</b></span>
+    <button id="btnLogout" class="logout">Đăng xuất</button>
+  </div>
+</div>
+
 
     <div class="tabs">
       <button class="tab active" data-tab="sheet1">🧾 Nhận hàng</button>
