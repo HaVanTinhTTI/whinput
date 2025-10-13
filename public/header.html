@@ -1,6 +1,9 @@
 <style>
 /* ===== HEADER ===== */
 .header {
+
+ 
+  
   position: fixed;
   top: 0;
   left: 0;
@@ -175,3 +178,15 @@
     Contact: Ha Van Tinh (VN.OP-SC-WH) / Smile Dinh Thanh Trung (VN.OP-WH)
   </div>
 </div>
+/* ===== FIX HEADER OVERLAP ===== */
+body {
+  padding-top: 70px; /* đẩy toàn bộ nội dung xuống dưới header */
+  background: #f9f9f9;
+  margin: 0;
+}
+
+#page-content, main, .main-wrap {
+  margin-top: 70px !important; /* đảm bảo vùng chính không bị header đè */
+  position: relative;
+  z-index: 1;
+}
