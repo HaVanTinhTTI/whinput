@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TTI Scrap Management</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<div class="header">
+  <div class="logo-left">
+    <img src="https://meixnbjwoifzltvdnykn.supabase.co/storage/v1/object/public/Image/LOGO%20RYOBI.png" alt="RYOBI">
+  </div>
+  <div class="title">TTI SCRAP MANAGEMENT</div>
+  <div class="logo-right">
+    <img src="https://meixnbjwoifzltvdnykn.supabase.co/storage/v1/object/public/Image/Logo%20TTI.png" alt="TTI">
+  </div>
+</div>
+
+<!-- Trigger zone -->
+<div class="sidebar-trigger"></div>
+
+<!-- ===== SIDEBAR ===== -->
+<div class="sidebar">
+  <h3>Navigation</h3>
+  <ul class="tree-menu">
+    <li><a href="https://whinput.vercel.app/menu.html">🏠 Home</a></li>
+    <li><a href="https://whinput.vercel.app/form.html">🧾 Update K2 Master</a></li>
+    <li><a href="https://whinput.vercel.app/PrintQR.html">🖨️ Print QR</a></li>
+    <li><a href="https://whinput.vercel.app/RYOBISCRAP.html">📥 Receiving</a></li>
+    <li><a href="#">👤 User</a></li>
+    <li><a href="#">📦 Inventory</a></li>
+    <li><a href="#">📊 Reports</a></li>
+  </ul>
+</div>
+
+<!-- ===== PAGE CONTENT ===== -->
+<div id="page-content">
+  <iframe id="main-frame" src="menu.html" frameborder="0"></iframe>
+</div>
+
+<!-- ===== FOOTER ===== -->
+<div id="footer-wrapper">
+  <div class="footercuahang">
+    Contact: Ha Van Tinh (VN.OP-SC-WH) / Smile Dinh Thanh Trung (VN.OP-WH)
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.sidebar a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    document.getElementById('main-frame').src = a.href;
+  });
+});
+</script>
+
+</body>
+</html>
