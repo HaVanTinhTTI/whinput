@@ -1,123 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>TTI Scrap Management</title>
-
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-/* ===== HEADER ===== */
-.Header_Tieude {
-  padding: 5px 0;
-  margin: 0;
-  font-family: Tahoma, sans-serif;
-  font-size: 30px;
-  color: white;
-  height: 60px;
-  background-color: #B5E61D;
-  width: 100%;
-  text-align: center;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 1000;
-}
-.Header_Tieude .logo-left { height: 45px; position: absolute; left: 10px; }
-.Header_Tieude .logo-right { height: 70px; position: absolute; right: 0px; }
-
-/* ===== SIDEBAR ===== */
-.sidebar {
-  position: fixed;
-  top: 60px;
-  left: 0;
-  width: 220px;
-  height: calc(100% - 60px);
-  background-color: #f4f4f4;
-  border-right: 2px solid #ccc;
-  padding: 20px;
-  box-sizing: border-box;
-  font-family: Tahoma, sans-serif;
-  overflow-y: auto;
-}
-
-/* ===== MAIN ===== */
-body { margin: 0; background:#f7f7f7; }
-.main-wrap { margin-left: 240px; margin-top: 80px; padding: 18px; font-family: Tahoma, sans-serif; }
-
-/* filter bar */
-#filter-bar {
-  display:flex;
-  gap:12px;
-  align-items:center;
-  flex-wrap:wrap;
-  background: #fff;
-  padding:10px 14px;
-  border-radius:8px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-}
-
-/* KPI */
-.kpi-row { display:flex; gap:16px; margin-top:14px; flex-wrap:wrap; }
-.kpi-box { flex:1; min-width:180px; padding:16px; border-radius:8px; color:#fff; font-weight:700; }
-.kpi-box .label { font-size:13px; font-weight:600; opacity:0.9 }
-.kpi-box .value { font-size:26px; margin-top:6px }
-
-/* colors */
-.kpi-qty { background:#4caf50; }
-.kpi-wt { background:#2196f3; }
-.kpi-val { background:#ff9800; }
-.kpi-item { background:#9c27b0; }
-
-/* chart container */
-.chart-wrap { margin-top:20px; background:#fff; padding:18px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
-
-/* detail table */
-.table-wrap { margin-top:18px; background:#fff; padding:14px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
-.table-wrap table { width:100%; border-collapse: collapse; font-size:13px; }
-.table-wrap th, .table-wrap td { border:1px solid #e3e3e3; padding:8px; text-align:center; }
-.table-wrap th { background:#f4f4f4; }
-
-/* pagination */
-.page-controls { display:flex; gap:10px; align-items:center; justify-content:center; margin-top:10px; }
-.page-controls button { padding:6px 10px; border-radius:6px; border:1px solid #ccc; background:#fff; cursor:pointer; }
-.page-info { font-size:13px; color:#333; }
-
-/* footer */
-#footer-wrapper { width:100%; background-color:#f2f2f2; padding:10px 0; border-top:2px solid #ccc; text-align:left; position:fixed; bottom:0; left:0; }
-.footercuahang { margin-left:10px; font-family:Tahoma, sans-serif; }
-</style>
-</head>
-<body>
-
-<!-- HEADER -->
-<div class="Header_Tieude">
-  <img src="https://meixnbjwoifzltvdnykn.supabase.co/storage/v1/object/public/Image/LOGO%20RYOBI.png" class="logo-left" alt="logo">
-  <div>TTI SCRAP MANAGEMENT</div>
-  <img src="https://meixnbjwoifzltvdnykn.supabase.co/storage/v1/object/public/Image/Logo%20TTI.png" class="logo-right" alt="logo">
-</div>
-
-<!-- SIDEBAR -->
-<div class="sidebar">
-  <h3>Navigation</h3>
-  <ul class="tree-menu">
-    <li><a href="#">🏠 Home</a></li>
-    <li><a href="#">👤 User</a></li>
-    <li><a href="#">📦 Inventory</a></li>
-    <li><a href="#">📊 Reports</a></li>
-  </ul>
-</div>
-
-<!-- MAIN -->
 <div class="main-wrap">
 
-  <!-- FILTER BAR (single source of truth) -->
+  <!-- FILTER BAR -->
   <div id="filter-bar">
     <label>BU:
       <select id="filter-bu"><option value="">All</option></select>
@@ -136,17 +19,20 @@ body { margin: 0; background:#f7f7f7; }
     </label>
 
     <label>From row:
-      <input id="input-from" type="number" min="1" value="1" style="width:90px;padding:6px;border-radius:6px;border:1px solid #ccc" />
+      <input id="input-from" type="number" min="1" value="1"
+        style="width:90px;padding:6px;border-radius:6px;border:1px solid #ccc" />
     </label>
 
     <label>Page size:
       <select id="page-size" style="padding:6px;border-radius:6px;border:1px solid #ccc">
-        <option value="25">25</option><option value="50" selected>50</option><option value="100">100</option>
+        <option value="25">25</option>
+        <option value="50" selected>50</option>
+        <option value="100">100</option>
       </select>
     </label>
 
-    <button id="btn-apply" style="padding:8px 12px;border-radius:6px;border:none;background:#4caf50;color:#fff;cursor:pointer">Apply</button>
-    <button id="btn-reset" style="padding:8px 12px;border-radius:6px;border:1px solid #ccc;background:#fff;cursor:pointer">Reset</button>
+    <button id="btn-apply" class="btn-apply">Apply</button>
+    <button id="btn-reset" class="btn-reset">Reset</button>
   </div>
 
   <!-- KPI -->
@@ -166,10 +52,9 @@ body { margin: 0; background:#f7f7f7; }
   <div class="table-wrap">
     <h3>Scrap Detail Data</h3>
     
-    <!-- Export buttons -->
     <div style="margin-bottom:10px; display:flex; gap:10px; justify-content:flex-end;">
-      <button id="btn-export-page" style="padding:8px 12px;border-radius:6px;border:1px solid #ccc;background:#fff;cursor:pointer;">📄 Export Page</button>
-      <button id="btn-export-all" style="padding:8px 12px;border-radius:6px;border:none;background:#2196f3;color:#fff;cursor:pointer;">📦 Export All</button>
+      <button id="btn-export-page" class="btn-outline">📄 Export Page</button>
+      <button id="btn-export-all" class="btn-primary">📦 Export All</button>
     </div>
     
     <table>
@@ -185,19 +70,9 @@ body { margin: 0; background:#f7f7f7; }
       <button id="btn-next">Next</button>
     </div>
   </div>
-
 </div>
 
-<!-- FOOTER -->
-<div id="footer-wrapper">
-  <div class="footercuahang">
-    <p style="font-size:1vw; margin: 0;">Contact: Ha Van Tinh (VN.OP-SC-WH) / Smile Dinh Thanh Trung (VN.OP-WH)</p>
-  </div>
-</div>
-
-<!-- SCRIPT -->
 <script type="module">
-/* ---------- Supabase setup ---------- */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as XLSX from "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm";
 
@@ -205,13 +80,10 @@ const supabaseUrl = "https://chjqassbtcqthueeddou.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoanFhc3NidGNxdGh1ZWVkZG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzY2OTgsImV4cCI6MjA3NTcxMjY5OH0.FbWGSw9sqUkb2_ppErN4QTFGy1Cho-HX4XbR5_-KB0I";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-/* ---------- state ---------- */
 let chartInstance = null;
 let currentCount = 0;
-let lastQueryFilters = {};
-let currentPageData = []; // Lưu trữ dữ liệu trang hiện tại
+let currentPageData = [];
 
-/* ---------- helpers ---------- */
 const escapeHtml = (s) => s==null?'':String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
 
 function getFiltersFromUI(){
@@ -223,64 +95,54 @@ function getFiltersFromUI(){
   };
 }
 
-/* ---------- load filter options (from view) ---------- */
+/* ---------- load filter options ---------- */
 async function loadFilters(){
-  try {
-    const { data, error } = await supabase.from('vw_kpi_scrap_filters').select('*');
-    if (error) { console.error('loadFilters error', error); return; }
-    const buList = [...new Set((data||[]).map(r=>r.BU).filter(Boolean))].sort();
-    const weekList = [...new Set((data||[]).map(r=>r.Weekly).filter(Boolean))].sort((a,b)=>a.localeCompare(b, undefined, {numeric:true}));
-    const typeList = [...new Set((data||[]).map(r=>r.Type).filter(Boolean))].sort();
-    const teamList = [...new Set((data||[]).map(r=>r.Team).filter(Boolean))].sort();
+  const { data, error } = await supabase.from('vw_kpi_scrap_filters').select('*');
+  if (error) return console.error(error);
+  const buList = [...new Set(data.map(r=>r.BU).filter(Boolean))].sort();
+  const weekList = [...new Set(data.map(r=>r.Weekly).filter(Boolean))].sort((a,b)=>a.localeCompare(b, undefined, {numeric:true}));
+  const typeList = [...new Set(data.map(r=>r.Type).filter(Boolean))].sort();
+  const teamList = [...new Set(data.map(r=>r.Team).filter(Boolean))].sort();
 
-    const setOptions = (id, arr) => {
-      const sel = document.getElementById(id);
-      sel.innerHTML = '<option value="">All</option>' + arr.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
-    };
-    setOptions('filter-bu', buList);
-    setOptions('filter-weekly', weekList);
-    setOptions('filter-type', typeList);
-    setOptions('filter-team', teamList);
-  } catch (e) {
-    console.error('loadFilters exception', e);
-  }
+  const setOptions = (id, arr) => {
+    document.getElementById(id).innerHTML =
+      '<option value="">All</option>' +
+      arr.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+  };
+  setOptions('filter-bu', buList);
+  setOptions('filter-weekly', weekList);
+  setOptions('filter-type', typeList);
+  setOptions('filter-team', teamList);
 }
 
-/* ---------- load KPI and chart ---------- */
+/* ---------- KPI ---------- */
 async function loadKPIandChart(){
-  try {
-    const filters = getFiltersFromUI();
-    lastQueryFilters = filters;
+  const filters = getFiltersFromUI();
+  let q = supabase.from('summary_scrap_weekly').select('*');
+  if (filters.BU) q = q.eq('BU', filters.BU);
+  if (filters.Weekly) q = q.eq('Weekly', filters.Weekly);
+  if (filters.Type) q = q.eq('Type', filters.Type);
+  if (filters.Team) q = q.eq('Team', filters.Team);
 
-    let q = supabase.from('summary_scrap_weekly').select('*');
-    if (filters.BU) q = q.eq('BU', filters.BU);
-    if (filters.Weekly) q = q.eq('Weekly', filters.Weekly);
-    if (filters.Type) q = q.eq('Type', filters.Type);
-    if (filters.Team) q = q.eq('Team', filters.Team);
+  const { data, error } = await q;
+  if (error) return console.error(error);
 
-    const { data, error } = await q;
-    if (error) { console.error('loadKPI error', error); return; }
+  const arr = data || [];
+  const totalQty = arr.reduce((s,r)=>s + Number(r.total_quantity || 0), 0);
+  const totalWt = arr.reduce((s,r)=>s + Number(r.total_weight || 0), 0);
+  const totalVal = arr.reduce((s,r)=>s + Number(r.total_value || 0), 0);
+  const totalItems = arr.reduce((s,r)=>s + Number(r.total_items || 0), 0);
 
-    const arr = data || [];
-    const totalQty = arr.reduce((s,r)=>s + Number(r.total_quantity || 0), 0);
-    const totalWt = arr.reduce((s,r)=>s + Number(r.total_weight || 0), 0);
-    const totalVal = arr.reduce((s,r)=>s + Number(r.total_value || 0), 0);
-    const totalItems = arr.reduce((s,r)=>s + Number(r.total_items || 0), 0);
+  document.getElementById('kpi-quantity').textContent = totalQty.toLocaleString();
+  document.getElementById('kpi-weight').textContent = totalWt.toLocaleString();
+  document.getElementById('kpi-value').textContent = totalVal.toLocaleString();
+  document.getElementById('kpi-item').textContent = totalItems.toLocaleString();
 
-    // Add icons to KPI
-    document.getElementById('kpi-quantity').innerHTML = `<span style="font-size:20px; margin-right:6px;">📦</span>${totalQty.toLocaleString()}`;
-    document.getElementById('kpi-weight').innerHTML = `<span style="font-size:20px; margin-right:6px;">⚖️</span>${totalWt.toLocaleString()}`;
-    document.getElementById('kpi-value').innerHTML = `<span style="font-size:20px; margin-right:6px;">💰</span>${totalVal.toLocaleString()}`;
-    document.getElementById('kpi-item').innerHTML = `<span style="font-size:20px; margin-right:6px;">🏷️</span>${totalItems.toLocaleString()}`;
-
-    const sorted = arr.slice().sort((a,b)=>String(a.Weekly).localeCompare(String(b.Weekly), undefined, {numeric:true}));
-    drawChart(sorted);
-  } catch(e){
-    console.error('loadKPIandChart exception', e);
-  }
+  const sorted = arr.slice().sort((a,b)=>String(a.Weekly).localeCompare(String(b.Weekly), undefined, {numeric:true}));
+  drawChart(sorted);
 }
 
-/* ---------- drawChart ---------- */
+/* ---------- Chart ---------- */
 function drawChart(data){
   const ctx = document.getElementById('chart').getContext('2d');
   const labels = data.map(r=>r.Weekly);
@@ -302,212 +164,44 @@ function drawChart(data){
       responsive:true,
       interaction:{ mode:'index', intersect:false },
       scales: {
-        y: { beginAtZero:true, title:{display:true, text:'Count / Weight'} },
-        y1: { position:'right', title:{display:true, text:'Value'}, grid:{ drawOnChartArea:false } }
+        y: { beginAtZero:true },
+        y1: { position:'right', grid:{ drawOnChartArea:false } }
       }
     }
   });
 }
 
-/* ---------- load Detail (full columns) ---------- */
-async function loadDetail(exportAll = false){
-  try {
-    const filters = getFiltersFromUI();
-    lastQueryFilters = filters;
-    const fromInput = parseInt(document.getElementById('input-from').value || '1', 10);
-    const pageSize = parseInt(document.getElementById('page-size').value || '50', 10);
-
-    let from = Math.max(0, (fromInput - 1));
-    let to = from + pageSize - 1;
-    if (exportAll) { from = 0; to = 999999; } // Tăng giới hạn cho export all
-
-    let q = supabase.from('Detail_Scrap_Data').select('*', { count: 'exact' }).range(from, to);
-    if (filters.BU) q = q.eq('BU', filters.BU);
-    if (filters.Weekly) q = q.eq('Weekly', filters.Weekly);
-    if (filters.Type) q = q.eq('Type', filters.Type);
-    if (filters.Team) q = q.eq('Team_deliver', filters.Team);
-
-    const { data, count, error } = await q;
-    if (error) { console.error('loadDetail error', error); return null; }
-
-    currentCount = count || 0;
-
-    // Lưu trữ dữ liệu trang hiện tại để export
-    if (!exportAll) {
-      currentPageData = data || [];
-    }
-
-    // Lấy danh sách cột động (tự động theo dữ liệu)
-    const allCols = data && data.length > 0 ? Object.keys(data[0]) : ["No data"];
-    const thead = `<tr>${allCols.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
-
-    if (!exportAll) {
-      const tbody = data ? data.map(r => `<tr>${allCols.map(c=>`<td>${escapeHtml(r[c])}</td>`).join('')}</tr>`).join('') : '';
-      document.querySelector(".table-wrap thead").innerHTML = thead;
-      document.getElementById('detail-body').innerHTML = tbody || '<tr><td colspan="100%">No rows</td></tr>';
-
-      const startRow = count ? (from + 1) : 0;
-      const endRow = Math.min(to + 1, count || 0);
-      document.getElementById('page-info').innerText = `Rows ${startRow} - ${endRow} / ${count || 0}`;
-
-      document.getElementById('btn-prev').disabled = from <= 0;
-      document.getElementById('btn-next').disabled = (to + 1) >= (count || 0);
-      
-      return data; // Trả về dữ liệu
-    } else {
-      return data; // Trả về dữ liệu cho export all
-    }
-  } catch (e) {
-    console.error('loadDetail exception', e);
-    return null;
-  }
-}
-
-/* ---------- Load All Data for Export (vượt qua giới hạn 1000 rows) ---------- */
-async function loadAllDataForExport() {
-  try {
-    const filters = getFiltersFromUI();
-    let allData = [];
-    let start = 0;
-    const limit = 1000;
-    let hasMore = true;
-
-    while (hasMore) {
-      let q = supabase
-        .from('Detail_Scrap_Data')
-        .select('*')
-        .range(start, start + limit - 1);
-      
-      if (filters.BU) q = q.eq('BU', filters.BU);
-      if (filters.Weekly) q = q.eq('Weekly', filters.Weekly);
-      if (filters.Type) q = q.eq('Type', filters.Type);
-      if (filters.Team) q = q.eq('Team_deliver', filters.Team);
-
-      const { data, error, count } = await q;
-      
-      if (error) {
-        console.error('loadAllDataForExport error', error);
-        break;
-      }
-      
-      if (!data || data.length === 0) {
-        hasMore = false;
-        break;
-      }
-      
-      allData = [...allData, ...data];
-      start += limit;
-      
-      // Hiển thị tiến trình
-      console.log(`Đã tải ${allData.length} bản ghi...`);
-      
-      // Nếu nhận được ít hơn limit, có nghĩa là đã hết dữ liệu
-      if (data.length < limit) {
-        hasMore = false;
-      }
-    }
-    
-    console.log(`Tổng số bản ghi đã tải: ${allData.length}`);
-    return allData;
-  } catch (e) {
-    console.error('loadAllDataForExport exception', e);
-    return [];
-  }
-}
-
-/* ---------- Export Data ---------- */
-async function exportData(all = false) {
-  try {
-    // Hiển thị thông báo đang xử lý
-    const exportBtn = all ? document.getElementById('btn-export-all') : document.getElementById('btn-export-page');
-    const originalText = exportBtn.textContent;
-    exportBtn.textContent = all ? '⏳ Loading...' : '⏳ Exporting...';
-    exportBtn.disabled = true;
-    
-    let data;
-    
-    if (all) {
-      // Export All - sử dụng hàm mới để lấy tất cả dữ liệu
-      alert('Đang tải tất cả dữ liệu, vui lòng chờ...');
-      data = await loadAllDataForExport();
-    } else {
-      // Export Page - sử dụng dữ liệu trang hiện tại
-      data = currentPageData;
-    }
-    
-    // Khôi phục trạng thái button
-    exportBtn.textContent = originalText;
-    exportBtn.disabled = false;
-    
-    if (!data || data.length === 0) {
-      alert("No data to export");
-      return;
-    }
-    
-    // Tạo file Excel
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Scrap_Data");
-    const filename = all ? `Scrap_Data_All_${new Date().toISOString().split('T')[0]}.xlsx` : `Scrap_Data_Page_${new Date().toISOString().split('T')[0]}.xlsx`;
-    XLSX.writeFile(wb, filename);
-    
-    if (all) {
-      alert(`Đã xuất thành công ${data.length} bản ghi!`);
-    }
-  } catch (e) {
-    console.error('exportData error', e);
-    alert('Export failed. Check console.');
-    
-    // Khôi phục trạng thái button nếu có lỗi
-    const exportBtn = all ? document.getElementById('btn-export-all') : document.getElementById('btn-export-page');
-    exportBtn.textContent = all ? '📦 Export All' : '📄 Export Page';
-    exportBtn.disabled = false;
-  }
-}
-
-/* ---------- Prev/Next ---------- */
-document.getElementById('btn-prev').addEventListener('click', () => {
+/* ---------- Detail ---------- */
+async function loadDetail(){
+  const filters = getFiltersFromUI();
+  const from = parseInt(document.getElementById('input-from').value || '1', 10) - 1;
   const pageSize = parseInt(document.getElementById('page-size').value || '50', 10);
-  let fromRow = Math.max(1, parseInt(document.getElementById('input-from').value || '1',10));
-  fromRow = Math.max(1, fromRow - pageSize);
-  document.getElementById('input-from').value = fromRow;
-  loadDetail();
-});
+  let q = supabase.from('Detail_Scrap_Data').select('*', { count: 'exact' }).range(from, from+pageSize-1);
 
-document.getElementById('btn-next').addEventListener('click', () => {
-  const pageSize = parseInt(document.getElementById('page-size').value || '50', 10);
-  let fromRow = Math.max(1, parseInt(document.getElementById('input-from').value || '1',10));
-  fromRow = fromRow + pageSize;
-  if (fromRow > currentCount) fromRow = Math.max(1, currentCount - pageSize + 1);
-  document.getElementById('input-from').value = fromRow;
-  loadDetail();
-});
+  if (filters.BU) q = q.eq('BU', filters.BU);
+  if (filters.Weekly) q = q.eq('Weekly', filters.Weekly);
+  if (filters.Type) q = q.eq('Type', filters.Type);
+  if (filters.Team) q = q.eq('Team_deliver', filters.Team);
 
-/* ---------- Apply / Reset ---------- */
-document.getElementById('btn-apply').addEventListener('click', async () => {
-  document.getElementById('input-from').value = 1;
-  await loadKPIandChart();
-  await loadDetail();
-});
-document.getElementById('btn-reset').addEventListener('click', async () => {
-  document.getElementById('filter-bu').value = '';
-  document.getElementById('filter-weekly').value = '';
-  document.getElementById('filter-type').value = '';
-  document.getElementById('filter-team').value = '';
-  document.getElementById('input-from').value = 1;
-  document.getElementById('page-size').value = '50';
-  await loadKPIandChart();
-  await loadDetail();
-});
+  const { data, count, error } = await q;
+  if (error) return console.error(error);
 
-/* ---------- Export Buttons ---------- */
-document.getElementById("btn-export-page").addEventListener("click", () => exportData(false));
-document.getElementById("btn-export-all").addEventListener("click", () => exportData(true));
+  currentCount = count || 0;
+  currentPageData = data || [];
+  const allCols = data?.length ? Object.keys(data[0]) : ["No data"];
+  const thead = `<tr>${allCols.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
+  const tbody = data?.map(r => `<tr>${allCols.map(c=>`<td>${escapeHtml(r[c])}</td>`).join('')}</tr>`).join('') || '<tr><td colspan="100%">No rows</td></tr>';
+  document.querySelector(".table-wrap thead").innerHTML = thead;
+  document.getElementById('detail-body').innerHTML = tbody;
+}
 
-/* ---------- Initial load ---------- */
+/* ---------- Event binding ---------- */
+document.getElementById('btn-apply').addEventListener('click', async ()=>{await loadKPIandChart(); await loadDetail();});
+document.getElementById('btn-reset').addEventListener('click', async ()=>{document.querySelectorAll('#filter-bu,#filter-weekly,#filter-type,#filter-team').forEach(e=>e.value=''); await loadKPIandChart(); await loadDetail();});
+document.getElementById('btn-export-page').addEventListener('click', ()=>exportData(false));
+document.getElementById('btn-export-all').addEventListener('click', ()=>exportData(true));
+
 await loadFilters();
 await loadKPIandChart();
 await loadDetail();
 </script>
-</body>
-</html>
