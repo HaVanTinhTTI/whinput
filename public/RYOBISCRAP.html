@@ -815,7 +815,7 @@ document.getElementById('btnSyncIn').addEventListener('click', async ()=>{
     if(error) throw error;
 
     // 🟢 Lọc thêm: chỉ lấy Remaining Qty > 0
-    const filtered = (data || []).filter(r => Number(r["Remaining Qty"]) > 0);
+    //const filtered = (data || []).filter(r => Number(r["Remaining Qty"]) > 0);
 
     if(!filtered.length){
       setCache({}); setLastSync();
