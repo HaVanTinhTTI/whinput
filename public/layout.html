@@ -121,7 +121,32 @@
 
 <!-- FOOTER -->
 <div id="footer-wrapper">
-  Contact: Ha Van Tinh (VN.OP-SC-WH) / Smile Dinh Thanh Trung (VN.OP-WH)
+  Contact: .......
 </div>
+ <scrip>
+   let sidebarTimer;
+
+// 🕒 Tự ẩn sidebar sau 2 giây nếu không tương tác
+function startSidebarAutoHide() {
+  clearTimeout(sidebarTimer);
+  sidebarTimer = setTimeout(() => {
+    document.querySelector('.sidebar').classList.add('hidden');
+  }, 2000); // 2 giây
+}
+
+// 🧠 Khi rê chuột vào sidebar → hiện lại ngay
+const sidebar = document.querySelector('.sidebar');
+sidebar.addEventListener('mouseenter', () => {
+  clearTimeout(sidebarTimer);
+  sidebar.classList.remove('hidden');
+});
+
+// 🧠 Khi rời chuột ra ngoài → bắt đầu đếm 2 giây
+sidebar.addEventListener('mouseleave', startSidebarAutoHide);
+
+// 🚀 Kích hoạt lần đầu (ẩn sau 2s nếu không tương tác)
+startSidebarAutoHide();
+
+ </scrip>
 </body>
 </html>
