@@ -8,60 +8,109 @@
 <style>
 /* ========== HEADER ========== */
 .header {
-  position: fixed; top: 0; left: 0; width: 100%; height: 60px;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 60px;
   background: linear-gradient(90deg, #9acd32, #b5e61d);
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 20px; box-sizing: border-box;
+  padding: 0 20px;
   border-bottom: 2px solid #1a1a1a;
   box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-  z-index: 1000;
   font-family: Tahoma, sans-serif;
+  z-index: 1000;
 }
 .header .logo-left img { height: 45px; }
-.header .title { flex: 1; text-align: center; color: #fff; font-size: 22px; font-weight: bold; }
+.header .title {
+  flex: 1; text-align: center;
+  color: #fff; font-size: 22px; font-weight: bold;
+  letter-spacing: 1px;
+}
 .header .logo-right img { height: 45px; }
 
 /* ========== SIDEBAR ========== */
-/* ========== SIDEBAR ========== */
 .sidebar {
   position: fixed;
-  top: 60px;
-  left: 0;
-  width: 220px;
-  height: calc(100% - 100px);
-  background: #f4f4f4;
-  border-right: 2px solid #ccc;
-  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.1);
+  top: 60px; left: 0;
+  width: 220px; height: calc(100% - 60px);
+  background: #f7f7f7;
+  border-right: 1px solid #ccc;
+  box-shadow: 2px 0 6px rgba(0,0,0,0.1);
   overflow-y: auto;
-  padding: 20px;
   box-sizing: border-box;
   font-family: Tahoma, sans-serif;
   z-index: 999;
   opacity: 1;
   transform: translateX(0);
-  transition: opacity 0.6s ease, transform 0.6s ease;
+  transition: all 0.5s ease;
 }
-
 .sidebar.hidden {
   opacity: 0;
   transform: translateX(-100%);
-  pointer-events: none; /* tránh click khi đã ẩn */
+  pointer-events: none;
+}
+.sidebar h3 {
+  margin: 15px 0 10px;
+  text-align: center;
+  font-size: 16px;
+  color: #444;
+}
+.sidebar ul {
+  list-style: none;
+  margin: 0; padding: 0;
+}
+.sidebar li {
+  margin: 6px 0;
+}
+.sidebar a {
+  text-decoration: none;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+.sidebar a:hover {
+  background: #e6f2ff;
+  color: #007bff;
+  transform: translateX(4px);
+  box-shadow: inset 2px 0 0 #007bff;
 }
 
+/* ========== TOGGLE BUTTON ========== */
+.toggle-btn {
+  position: fixed;
+  top: 70px; left: 10px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 35px; height: 35px;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 1001;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  transition: background 0.2s;
+}
+.toggle-btn:hover { background: #0056b3; }
 
-/* ========== CONTENT AREA ========== */
+/* ========== CONTENT ========== */
 #page-content {
   position: relative;
   margin-top: 60px;
-  margin-left: 20px;
-  padding: 0;
-  min-height: calc(100vh - 100px);
+  margin-left: 240px;
+  transition: margin-left 0.5s ease;
   background: #f9f9f9;
-  transition: all 0.3s;
+}
+#page-content.full {
+  margin-left: 40px;
 }
 #page-frame {
   width: 100%;
-  height: calc(100vh - 100px);
+  height: calc(100vh - 60px);
   border: none;
   background: white;
 }
@@ -69,19 +118,21 @@
 /* ========== FOOTER ========== */
 #footer-wrapper {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 40px;
+  bottom: 0; left: 0;
+  width: 100%; height: 40px;
   background-color: #f2f2f2;
-  border-top: 2px solid #ccc;
-  display: flex;
-  align-items: center;
+  border-top: 1px solid #ccc;
+  display: flex; align-items: center;
+  justify-content: flex-start;
   padding-left: 240px;
   box-sizing: border-box;
   font-family: Tahoma, sans-serif;
   font-size: 13px;
   color: #333;
+  transition: padding-left 0.5s ease;
+}
+#footer-wrapper.full {
+  padding-left: 40px;
 }
 </style>
 </head>
@@ -89,28 +140,30 @@
 <body>
 <!-- HEADER -->
 <div class="header">
-  <div class="logo-left"><img src="https://meixnbjwoifzltvdnykn.supabase.co/storage/v1/object/public/Image/LOGO%20RYOBI.png" alt="RYOBI"></div>
+  <div class="logo-left">
+    <img src="https://meixnbjwoifzltvdnykn.supabase.co/storage/v1/object/public/Image/LOGO%20RYOBI.png" alt="RYOBI">
+  </div>
   <div class="title">TTI SCRAP MANAGEMENT</div>
-  <div class="logo-right"><img src="https://meixnbjwoifzltvdnykn.supabase.co/storage/v1/object/public/Image/Logo%20TTI.png" alt="TTI"></div>
+  <div class="logo-right">
+    <img src="https://meixnbjwoifzltvdnykn.supabase.co/storage/v1/object/public/Image/Logo%20TTI.png" alt="TTI">
+  </div>
 </div>
 
+<!-- TOGGLE BUTTON -->
+<button class="toggle-btn" id="toggleSidebar">☰</button>
+
 <!-- SIDEBAR -->
-<div class="sidebar">
+<div class="sidebar" id="sidebar">
   <h3>Navigation</h3>
   <ul>
     <li><a href="https://whinput.vercel.app/manage.html" target="page-frame">🏠 Home</a></li>
     <li><a href="https://whinput.vercel.app/form.html" target="page-frame">🧾 Update K2 Master</a></li>
     <li><a href="https://whinput.vercel.app/PrintQR.html" target="page-frame">🖨️ Print QR</a></li>
-    <li><a href="https://whinput.vercel.app/RYOBISCRAP.html" target="page-frame">📥 Receiving</a></li>
-    <li><a href="https://whinput.vercel.app/datamodify.html" target="page-frame">📥 Data</a></li>
-    <li><a href="https://whinput.vercel.app/RYOBISCRAP.html" target="page-frame">📥 Waiting</a></li>
-    <li><a href="https://whinput.vercel.app/RYOBISCRAP.html" target="page-frame">📥 Waiting</a></li>
-    <li><a href="https://whinput.vercel.app/RYOBISCRAP.html" target="page-frame">📥 Waiting</a></li>
-    <li><a href="https://whinput.vercel.app/RYOBISCRAP.html" target="page-frame">📥 Waiting</a></li>
-    
+    <li><a href="https://whinput.vercel.app/RYOBISCRAP.html" target="page-frame">📦 Receiving</a></li>
+    <li><a href="https://whinput.vercel.app/datamodify.html" target="page-frame">📊 Data Modify</a></li>
     <li><a href="#" target="page-frame">👤 User</a></li>
     <li><a href="#" target="page-frame">📦 Inventory</a></li>
-    <li><a href="#" target="page-frame">📊 Reports</a></li>
+    <li><a href="#" target="page-frame">📈 Reports</a></li>
   </ul>
 </div>
 
@@ -121,32 +174,55 @@
 
 <!-- FOOTER -->
 <div id="footer-wrapper">
-  Contact: .......
+  Contact: ........
 </div>
- <scrip>
-   let sidebarTimer;
 
-// 🕒 Tự ẩn sidebar sau 2 giây nếu không tương tác
+<script>
+// === Sidebar auto-hide logic ===
+const sidebar = document.getElementById('sidebar');
+const toggleBtn = document.getElementById('toggleSidebar');
+const pageContent = document.getElementById('page-content');
+const footer = document.getElementById('footer-wrapper');
+
+let sidebarTimer;
+
 function startSidebarAutoHide() {
   clearTimeout(sidebarTimer);
   sidebarTimer = setTimeout(() => {
-    document.querySelector('.sidebar').classList.add('hidden');
-  }, 2000); // 2 giây
+    sidebar.classList.add('hidden');
+    pageContent.classList.add('full');
+    footer.classList.add('full');
+  }, 2000);
 }
 
-// 🧠 Khi rê chuột vào sidebar → hiện lại ngay
-const sidebar = document.querySelector('.sidebar');
+// Hover logic
 sidebar.addEventListener('mouseenter', () => {
   clearTimeout(sidebarTimer);
   sidebar.classList.remove('hidden');
+  pageContent.classList.remove('full');
+  footer.classList.remove('full');
 });
-
-// 🧠 Khi rời chuột ra ngoài → bắt đầu đếm 2 giây
 sidebar.addEventListener('mouseleave', startSidebarAutoHide);
 
-// 🚀 Kích hoạt lần đầu (ẩn sau 2s nếu không tương tác)
+// Toggle button click
+toggleBtn.addEventListener('click', () => {
+  sidebar.classList.toggle('hidden');
+  pageContent.classList.toggle('full');
+  footer.classList.toggle('full');
+});
+
+// Auto hide after 2s idle
 startSidebarAutoHide();
 
- </scrip>
+// Reveal sidebar when mouse near left edge
+document.addEventListener('mousemove', e => {
+  if (e.clientX < 30) {
+    sidebar.classList.remove('hidden');
+    pageContent.classList.remove('full');
+    footer.classList.remove('full');
+    startSidebarAutoHide();
+  }
+});
+</script>
 </body>
 </html>
