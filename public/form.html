@@ -253,7 +253,12 @@ window.massUpdateK2Master = async function()
 		}
 
 		if (toUpdate.length) {
-		  const { error: upErr } = await client.from('K2_Master').upsert(toUpdate, { onConflict: 'MRDetailID' });
+		  const { error: upErr } = await client
+  .from('K2_Master')
+  .upsert(toUpdate, { onConflict: '"OrgName", "ItemCode", "Item Reference No."' });
+
+		  
+		  
 		  if (upErr) {
 			failed += toUpdate.length;
 			failedDetails.push('❌ Update batch lỗi: ' + upErr.message);
@@ -305,6 +310,9 @@ document.getElementById('downloadBtn').addEventListener('click', downloadCDCESam
 
 // ===== ⚡️ MASS UPDATE TO SF_Master (TỐI ƯU – KEY: ItemCode + form_no) =====
 
+// ===== ⚡️ MASS UPDATE TO SF_Master (BỎ QUA DÒNG TRÙNG, KHÔNG STOP) =====
+// ===== ⚡️ MASS UPDATE TO SF_Master (AUTO CHECK DUPLICATE BEFORE INSERT) =====
+// ===== ⚡️ MASS UPDATE TO SF_Master (THÊM Rev / Sub Inventory / Locator No) =====
 
 function chunk(arr, size = 200) {
   const res = [];
@@ -319,18 +327,12 @@ async function readExcelSF(file) {
       try {
         const data = new Uint8Array(e.target.result);
         const wb = XLSX.read(data, { type: 'array' });
-
-        // ✅ Có thể tự động chọn sheet đầu tiên hoặc sheet "Report"
-        const sheetName = wb.SheetNames.includes("Report")
-          ? "Report"
-          : wb.SheetNames[0];
-
+        const sheetName = wb.SheetNames.includes("Report") ? "Report" : wb.SheetNames[0];
         const ws = wb.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
         console.log(`📘 Đọc sheet: ${sheetName}, tổng ${rows.length} dòng`);
         resolve(rows);
       } catch (err) {
-        console.error("❌ Lỗi đọc Excel:", err);
         reject(err);
       }
     };
@@ -352,103 +354,110 @@ async function massInsertSFFast() {
   statusDiv.innerHTML = '';
 
   try {
+    // === Đọc file Excel ===
     const file = fileInput.files[0];
     const rows = await readExcelSF(file);
 
-    // Hàm lấy giá trị theo nhiều biến thể header
+    // === Hàm đọc giá trị theo alias ===
     function valOf(row, aliases) {
       const keys = Object.keys(row);
       for (const alias of aliases) {
-        const normAlias = String(alias).toLowerCase().replace(/[.\s_]+/g, ' ').trim();
+        const normAlias = alias.toLowerCase().replace(/[.\s_]+/g, ' ').trim();
         const key = keys.find(k =>
-          String(k).toLowerCase().replace(/[.\s_]+/g, ' ').trim() === normAlias
+          k.toLowerCase().replace(/[.\s_]+/g, ' ').trim() === normAlias
         );
         if (key != null) return row[key];
       }
       return null;
     }
 
-    // Chuẩn hóa dữ liệu
+    // === Chuẩn hóa dữ liệu đầu vào ===
     const cleaned = rows.map(r => {
-  const itemCode = valOf(r, ['Item Code', 'ItemCode', 'ITEM CODE', 'item code']);
-  const formNo   = valOf(r, ['Form No', 'Form No.', 'FORM NO', 'form no']); // <== đọc từ Excel
-  const orgCode  = valOf(r, ['Org Code', 'OrgCode', 'ORG CODE']);
-  const reason   = valOf(r, ['Reason', 'ERPReason']);
-  const qtyRaw   = valOf(r, ['Scrap Qty', 'Quantity', 'SCRAP QTY']);
+      const itemCode = valOf(r, ['Item Code', 'ItemCode']);
+      const formNo = valOf(r, ['Form No', 'FormNo', 'Form No.', 'FORM NO']);
+      const orgCode = valOf(r, ['Org Code', 'OrgName']);
+      const reason = valOf(r, ['Reason', 'ERPReason']);
+      const qtyRaw = valOf(r, ['Scrap Qty', 'Quantity', 'SCRAP QTY']);
+      const rev = valOf(r, ['Rev', 'Revision']);
+      const subInv = valOf(r, ['Sub Inventory', 'SubInventory', 'SUB INVENTORY']);
+      const locator = valOf(r, ['Locator No', 'LocatorNo', 'LOCATOR NO']);
 
-        // ép kiểu số an toàn
-  let qty = null;
-  if (qtyRaw != null && qtyRaw !== '') {
-    const n = Number(String(qtyRaw).replace(/,/g, '').trim());
-    if (!isNaN(n)) qty = n;
-  }
+      let qty = null;
+      if (qtyRaw != null && qtyRaw !== '') {
+        const n = Number(String(qtyRaw).replace(/,/g, '').trim());
+        if (!isNaN(n)) qty = n;
+      }
 
-  return {
-    ERPReason: reason ?? null,
-    ItemCode: itemCode ? String(itemCode).trim() : '',
-    OrgName: orgCode ?? null,
-    Quantity: qty,
-    "Item Reference No.": formNo ? String(formNo).trim() : '' // <== nạp vào cột K2_Master
-  };
-}).filter(r => r.ItemCode && r["Item Reference No."]);
+      return {
+        ERPReason: reason ?? null,
+        ItemCode: itemCode ? String(itemCode).trim() : '',
+        OrgName: orgCode ?? null,
+        Quantity: qty,
+        Revision: rev ?? null,
+        from_sub: subInv ?? null,
+        locator_from: locator ?? null,
+        "Item Reference No.": formNo ? String(formNo).trim() : ''
+      };
+    }).filter(r => r.ItemCode && r["Item Reference No."]);
 
     if (!cleaned.length) {
       spinner.style.display = 'none';
-      statusDiv.innerHTML = '⚠️ Không có dòng hợp lệ (thiếu ItemCode hoặc Item Reference No.)';
+      statusDiv.textContent = '⚠️ Không có dòng hợp lệ (thiếu ItemCode hoặc Item Reference No.)';
       statusDiv.className = 'error';
       return;
     }
 
-    // Lấy dữ liệu hiện có
+    // === Lấy dữ liệu hiện có từ DB ===
     const { data: existing, error: existErr } = await client
       .from('K2_Master')
-      .select('ItemCode, "Item Reference No."');
+      .select('OrgName, ItemCode, "Item Reference No."');
 
     if (existErr) throw existErr;
 
-    const existMap = new Map();
-    existing.forEach(r => existMap.set(`${r.ItemCode}||${r["Item Reference No."]}`, true));
+    // === Tạo map key từ DB ===
+    const dbKeys = new Set(
+      existing.map(r => `${r.OrgName?.trim()}||${r.ItemCode?.trim()}||${r["Item Reference No."]?.trim()}`)
+    );
 
-    // Phân loại dòng mới / trùng
-    const newRows = [];
-    let dupCount = 0;
+    // === Lọc trùng nội bộ + trùng DB ===
+    const seen = new Set();
+    const uniqueRows = [];
+    const dupRows = [];
+
     for (const r of cleaned) {
-      const key = `${r.ItemCode}||${r["Item Reference No."]}`;
-      if (existMap.has(key)) {
-        dupCount++;
+      const key = `${r.OrgName?.trim()}||${r.ItemCode?.trim()}||${r["Item Reference No."]?.trim()}`;
+      if (dbKeys.has(key) || seen.has(key)) {
+        dupRows.push(r);
       } else {
-        const safeRow = {};
-        for (const [k, v] of Object.entries(r)) {
-          if (v === undefined) continue;
-          if (k === 'Quantity' && (v === null || isNaN(v))) continue;
-          safeRow[k] = v;
-        }
-        if (Object.keys(safeRow).length > 0) newRows.push(safeRow);
+        seen.add(key);
+        uniqueRows.push(r);
       }
     }
 
-    // Insert batch
+    // === Insert batch ===
     let inserted = 0, failed = 0;
-    const batches = chunk(newRows, 200);
+    const batches = chunk(uniqueRows, 200);
 
     for (const [index, b] of batches.entries()) {
       console.log(`🟩 Batch ${index + 1}/${batches.length}: ${b.length} rows`);
       const { error } = await client.from('K2_Master').insert(b, { returning: 'minimal' });
+
       if (error) {
         console.error(`❌ Batch ${index + 1} lỗi:`, error.message);
         failed += b.length;
       } else {
         inserted += b.length;
       }
-      await new Promise(r => setTimeout(r, 150));
+
+      await new Promise(r => setTimeout(r, 120));
     }
 
-    // Kết quả
+    // === Kết quả ===
     spinner.style.display = 'none';
     statusDiv.innerHTML = `
-✅ Đã chèn mới: ${inserted} dòng<br>
-⚠️ Đã tồn tại (bỏ qua): ${dupCount} dòng<br>
-❌ Lỗi: ${failed} dòng
+✅ Đã thêm mới: ${inserted} dòng<br>
+⚠️ Bỏ qua (đã tồn tại hoặc trùng nội bộ): ${dupRows.length} dòng<br>
+❌ Lỗi khác: ${failed} dòng
     `;
     statusDiv.className = failed ? 'error' : 'ok';
 
@@ -459,9 +468,10 @@ async function massInsertSFFast() {
   }
 }
 
-
 document.getElementById('sfMassUploadBtn')
   .addEventListener('click', massInsertSFFast);
+
+
 
 /////SCP
 // ===== ⚡️ MASS UPDATE TO SCP_Master (KEY = ItemCode + Item Reference No.) =====
