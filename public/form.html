@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html >
 <head>
   <meta charset="UTF-8" />
   <title>CDCE & K2_Master Data Tools</title>
@@ -77,6 +77,28 @@
 	<div id="loading-spinner"></div>
     <div id="status-update"></div>
   </div>
+  
+    <!-- ==== MASS UPDATE SF_MASTER ==== -->
+<div class="box">
+  <h3>📤 Mass Update to SF_Master</h3>
+  <input type="file" id="sfMassUpload" accept=".xlsx,.xls,.csv" />
+  <button id="sfMassUploadBtn">Upload & Update</button>
+  <div id="loading-spinner-sf" style="display:none;">⏳ Đang cập nhật...</div>
+  <div id="status-update-sf"></div>
+</div>
+
+
+<div class="box">
+  <h3>📤 Mass Update to SCP_Master</h3>
+  <input type="file" id="scpMassUpload" accept=".xlsx,.xls,.csv" />
+  <button id="scpMassUploadBtn">Upload & Update</button>
+  <div id="loading-spinner-scp" style="display:none;">⏳ Đang cập nhật...</div>
+  <div id="status-update-scp"></div>
+</div>
+
+
+
+
   <script>
 		async function downloadCDCESample() {
   try {
@@ -240,8 +262,14 @@ window.massUpdateK2Master = async function()
 		  }
 		}
 
+		
+
 		if (toInsert.length) {
-		  const { error: inErr } = await client.from('K2_Master').insert(toInsert);
+		 
+		  const { error: inErr } = await client.from('K2_Master')
+		 
+		  
+		  .insert(toInsert);
 		  if (inErr) {
 			failed += toInsert.length;
 			failedDetails.push('❌ Insert batch lỗi: ' + inErr.message);
@@ -270,16 +298,323 @@ ${failed > 0 ? '<br><b>Chi tiết lỗi:</b><br>' + failedDetails.join('<br>') :
 
 
 
-
-
-
-
 document.getElementById('downloadBtn').addEventListener('click', downloadCDCESample);
 document.getElementById('massUploadBtn').addEventListener('click', window.massUpdateK2Master);
 document.getElementById('downloadBtn').addEventListener('click', downloadCDCESample);
 
 
+// ===== ⚡️ MASS UPDATE TO SF_Master (TỐI ƯU – KEY: ItemCode + form_no) =====
+
+
+function chunk(arr, size = 200) {
+  const res = [];
+  for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size));
+  return res;
+}
+
+async function readExcelSF(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+
+        // ✅ Có thể tự động chọn sheet đầu tiên hoặc sheet "Report"
+        const sheetName = wb.SheetNames.includes("Report")
+          ? "Report"
+          : wb.SheetNames[0];
+
+        const ws = wb.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
+        console.log(`📘 Đọc sheet: ${sheetName}, tổng ${rows.length} dòng`);
+        resolve(rows);
+      } catch (err) {
+        console.error("❌ Lỗi đọc Excel:", err);
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function massInsertSFFast() {
+  const fileInput = document.getElementById('sfMassUpload');
+  const statusDiv = document.getElementById('status-update-sf');
+  const spinner = document.getElementById('loading-spinner-sf');
+  if (!fileInput.files.length) {
+    alert('⚠️ Hãy chọn file!');
+    return;
+  }
+
+  spinner.style.display = 'block';
+  statusDiv.innerHTML = '';
+
+  try {
+    const file = fileInput.files[0];
+    const rows = await readExcelSF(file);
+
+    // Hàm lấy giá trị theo nhiều biến thể header
+    function valOf(row, aliases) {
+      const keys = Object.keys(row);
+      for (const alias of aliases) {
+        const normAlias = String(alias).toLowerCase().replace(/[.\s_]+/g, ' ').trim();
+        const key = keys.find(k =>
+          String(k).toLowerCase().replace(/[.\s_]+/g, ' ').trim() === normAlias
+        );
+        if (key != null) return row[key];
+      }
+      return null;
+    }
+
+    // Chuẩn hóa dữ liệu
+    const cleaned = rows.map(r => {
+  const itemCode = valOf(r, ['Item Code', 'ItemCode', 'ITEM CODE', 'item code']);
+  const formNo   = valOf(r, ['Form No', 'Form No.', 'FORM NO', 'form no']); // <== đọc từ Excel
+  const orgCode  = valOf(r, ['Org Code', 'OrgCode', 'ORG CODE']);
+  const reason   = valOf(r, ['Reason', 'ERPReason']);
+  const qtyRaw   = valOf(r, ['Scrap Qty', 'Quantity', 'SCRAP QTY']);
+
+        // ép kiểu số an toàn
+  let qty = null;
+  if (qtyRaw != null && qtyRaw !== '') {
+    const n = Number(String(qtyRaw).replace(/,/g, '').trim());
+    if (!isNaN(n)) qty = n;
+  }
+
+  return {
+    ERPReason: reason ?? null,
+    ItemCode: itemCode ? String(itemCode).trim() : '',
+    OrgName: orgCode ?? null,
+    Quantity: qty,
+    "Item Reference No.": formNo ? String(formNo).trim() : '' // <== nạp vào cột K2_Master
+  };
+}).filter(r => r.ItemCode && r["Item Reference No."]);
+
+    if (!cleaned.length) {
+      spinner.style.display = 'none';
+      statusDiv.innerHTML = '⚠️ Không có dòng hợp lệ (thiếu ItemCode hoặc Item Reference No.)';
+      statusDiv.className = 'error';
+      return;
+    }
+
+    // Lấy dữ liệu hiện có
+    const { data: existing, error: existErr } = await client
+      .from('K2_Master')
+      .select('ItemCode, "Item Reference No."');
+
+    if (existErr) throw existErr;
+
+    const existMap = new Map();
+    existing.forEach(r => existMap.set(`${r.ItemCode}||${r["Item Reference No."]}`, true));
+
+    // Phân loại dòng mới / trùng
+    const newRows = [];
+    let dupCount = 0;
+    for (const r of cleaned) {
+      const key = `${r.ItemCode}||${r["Item Reference No."]}`;
+      if (existMap.has(key)) {
+        dupCount++;
+      } else {
+        const safeRow = {};
+        for (const [k, v] of Object.entries(r)) {
+          if (v === undefined) continue;
+          if (k === 'Quantity' && (v === null || isNaN(v))) continue;
+          safeRow[k] = v;
+        }
+        if (Object.keys(safeRow).length > 0) newRows.push(safeRow);
+      }
+    }
+
+    // Insert batch
+    let inserted = 0, failed = 0;
+    const batches = chunk(newRows, 200);
+
+    for (const [index, b] of batches.entries()) {
+      console.log(`🟩 Batch ${index + 1}/${batches.length}: ${b.length} rows`);
+      const { error } = await client.from('K2_Master').insert(b, { returning: 'minimal' });
+      if (error) {
+        console.error(`❌ Batch ${index + 1} lỗi:`, error.message);
+        failed += b.length;
+      } else {
+        inserted += b.length;
+      }
+      await new Promise(r => setTimeout(r, 150));
+    }
+
+    // Kết quả
+    spinner.style.display = 'none';
+    statusDiv.innerHTML = `
+✅ Đã chèn mới: ${inserted} dòng<br>
+⚠️ Đã tồn tại (bỏ qua): ${dupCount} dòng<br>
+❌ Lỗi: ${failed} dòng
+    `;
+    statusDiv.className = failed ? 'error' : 'ok';
+
+  } catch (err) {
+    spinner.style.display = 'none';
+    statusDiv.innerHTML = `❌ Lỗi: ${err.message}`;
+    statusDiv.className = 'error';
+  }
+}
+
+
+document.getElementById('sfMassUploadBtn')
+  .addEventListener('click', massInsertSFFast);
+
+/////SCP
+// ===== ⚡️ MASS UPDATE TO SCP_Master (KEY = ItemCode + Item Reference No.) =====
+
+async function readExcelSCP(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+
+        // ưu tiên sheet "Report" nếu có
+        const sheetName = wb.SheetNames.includes("Report") ? "Report" : wb.SheetNames[0];
+        const ws = wb.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
+        console.log(`📘 Đọc sheet: ${sheetName}, tổng ${rows.length} dòng`);
+        resolve(rows);
+      } catch (err) {
+        console.error("❌ Lỗi đọc Excel:", err);
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function massInsertSCP() {
+  const fileInput = document.getElementById('scpMassUpload');
+  const statusDiv = document.getElementById('status-update-scp');
+  const spinner = document.getElementById('loading-spinner-scp');
+  if (!fileInput.files.length) return alert('⚠️ Hãy chọn file SCP!');
+
+  spinner.style.display = 'block';
+  statusDiv.innerHTML = '';
+
+  try {
+    const file = fileInput.files[0];
+    const rows = await readExcelSCP(file);
+
+    // ===== Chuẩn hóa header =====
+    function valOf(row, aliases) {
+      const keys = Object.keys(row);
+      for (const alias of aliases) {
+        const normAlias = String(alias).toLowerCase().replace(/[.\s_]+/g, ' ').trim();
+        const key = keys.find(k =>
+          String(k).toLowerCase().replace(/[.\s_]+/g, ' ').trim() === normAlias
+        );
+        if (key != null) return row[key];
+      }
+      return null;
+    }
+
+    // ===== Chuẩn hóa dữ liệu =====
+    const cleaned = rows.map(r => {
+      const cbNo = valOf(r, ['CB no', 'CB', 'cb no']);
+      const scp = valOf(r, ['SCP/ WRO', 'SCP WRO', 'SCP']);
+      const partNo = valOf(r, ['Part No.', 'Part No', 'PART NO']);
+      const qtyRaw = valOf(r, ['Quantity', 'Qty']);
+      const org = valOf(r, ['Org', 'OrgName']);
+
+      const refNo = [scp, cbNo].filter(Boolean).join('&'); // SCP/WRO + CB no
+
+      let qty = null;
+      if (qtyRaw != null && qtyRaw !== '') {
+        const n = Number(String(qtyRaw).replace(/,/g, '').trim());
+        if (!isNaN(n)) qty = n;
+      }
+
+      return {
+        "Item Reference No.": refNo ? String(refNo).trim() : '',
+        "ItemCode": partNo ? String(partNo).trim() : '',
+        "Quantity": qty,
+        "OrgName": org ? String(org).trim() : ''
+      };
+    }).filter(r => r["ItemCode"] && r["Item Reference No."]);
+
+    if (!cleaned.length) {
+      spinner.style.display = 'none';
+      statusDiv.innerHTML = '⚠️ Không có dòng hợp lệ (thiếu ItemCode hoặc Item Reference No.)';
+      statusDiv.className = 'error';
+      return;
+    }
+
+    // ===== Lấy dữ liệu hiện có trong K2_Master =====
+    const { data: existing, error: existErr } = await client
+      .from('K2_Master')
+      .select('ItemCode, "Item Reference No."');
+
+    if (existErr) throw existErr;
+
+    const existMap = new Map();
+    existing.forEach(r => {
+      const key = `${r.ItemCode}||${r["Item Reference No."]}`;
+      existMap.set(key, true);
+    });
+
+    // ===== Chỉ insert nếu chưa tồn tại =====
+    const newRows = [];
+    let dupCount = 0;
+    for (const r of cleaned) {
+      const key = `${r.ItemCode}||${r["Item Reference No."]}`;
+      if (existMap.has(key)) {
+        dupCount++;
+      } else {
+        newRows.push(r);
+      }
+    }
+
+    // ===== Chèn batch =====
+    const chunk = (arr, size = 200) => {
+      const res = [];
+      for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size));
+      return res;
+    };
+
+    let inserted = 0, failed = 0;
+    const batches = chunk(newRows, 200);
+
+    for (const [index, b] of batches.entries()) {
+      console.log(`🟩 Batch ${index + 1}/${batches.length}: ${b.length} dòng`);
+      const { error } = await client.from('K2_Master').insert(b, { returning: 'minimal' });
+      if (error) {
+        console.error(`❌ Batch ${index + 1} lỗi:`, error.message);
+        failed += b.length;
+      } else {
+        inserted += b.length;
+      }
+      await new Promise(r => setTimeout(r, 150));
+    }
+
+    // ===== Kết quả =====
+    spinner.style.display = 'none';
+    statusDiv.innerHTML = `
+✅ Đã thêm mới: ${inserted} dòng<br>
+⚠️ Đã tồn tại (bỏ qua): ${dupCount} dòng<br>
+❌ Lỗi: ${failed} dòng
+    `;
+    statusDiv.className = failed ? 'error' : 'ok';
+
+  } catch (err) {
+    spinner.style.display = 'none';
+    statusDiv.innerHTML = `❌ Lỗi: ${err.message}`;
+    statusDiv.className = 'error';
+  }
+}
+
+document.getElementById('scpMassUploadBtn')
+  .addEventListener('click', massInsertSCP);
+
+
 </script>
   
 </body>
-</html>
+</html> 
