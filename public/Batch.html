@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Batch Scrap Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f9fb;
+      padding: 20px;
+    }
+    h1 { text-align: center; color: #2563eb; }
+    .card { background: white; padding: 16px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    input, select, textarea {
+      padding: 8px; border: 1px solid #ccc; border-radius: 6px; margin: 4px; width: calc(100% - 20px);
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #e5efff; }
+    button { background: #2563eb; color: white; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; margin: 5px; }
+    button:hover { background: #1d4ed8; }
+    .status { border-radius: 6px; padding: 3px 8px; color: white; }
+    .active { background: #22c55e; }
+    .closed { background: #dc2626; }
+    .future { background: #f59e0b; }
+  </style>
+</head>
+<body>
+
+  <h1>📦 Batch Scrap Admin</h1>
+
+  <div class="card">
+    <h3>➕ Tạo Batch mới</h3>
+    <input id="batch_scrap" placeholder="Batch name (VD: SCRAP202510W3)">
+    <input id="description" placeholder="Mô tả ngắn...">
+    <label>Hiệu lực từ:</label>
+    <input id="valid_from" type="date">
+    <label>đến:</label>
+    <input id="valid_to" type="date">
+    <button id="btnAdd">Thêm Batch</button>
+    <p id="msg"></p>
+  </div>
+
+  <div class="card">
+    <h3>📋 Danh sách Batch</h3>
+    <table id="tblBatch">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Batch</th>
+          <th>Mô tả</th>
+          <th>Từ</th>
+          <th>Đến</th>
+          <th>Trạng thái</th>
+          <th>Người tạo</th>
+          <th>Cập nhật</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+
+<div class="card">
+  <h3>🧑‍💼 Admin: Cập nhật Batch</h3>
+  <input id="batchScrap" placeholder="Nhập Batch Scrap..." class="input" />
+  <label>Valid From:</label>
+  <input id="batchFrom" type="date" class="input" />
+  <label>Valid To:</label>
+  <input id="batchTo" type="date" class="input" />
+  <label>Status:</label>
+  <select id="batchStatus" class="input">
+    <option value="">(Tự động)</option>
+    <option value="active">Active</option>
+    <option value="future">Future</option>
+    <option value="closed">Closed</option>
+  </select>
+  <button id="btnUpdateBatch" class="btn">💾 Cập nhật Batch</button>
+</div>
+
+
+<script>
+  const supabaseUrl = 'https://chjqassbtcqthueeddou.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoanFhc3NidGNxdGh1ZWVkZG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzY2OTgsImV4cCI6MjA3NTcxMjY5OH0.FbWGSw9sqUkb2_ppErN4QTFGy1Cho-HX4XbR5_-KB0I';
+  const client = supabase.createClient(supabaseUrl, supabaseKey);
+
+  const msg = document.getElementById('msg');
+  const tbody = document.querySelector('#tblBatch tbody');
+
+  async function loadBatches() {
+    const { data, error } = await client
+      .from('Batch_Master')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) {
+      msg.textContent = '❌ Lỗi tải dữ liệu: ' + error.message;
+      return;
+    }
+    tbody.innerHTML = data.map(b => `
+      <tr>
+        <td>${b.id}</td>
+        <td>${b.batch_scrap}</td>
+        <td>${b.description||''}</td>
+        <td>${b.valid_from}</td>
+        <td>${b.valid_to}</td>
+        <td><span class="status ${b.status}">${b.status}</span></td>
+        <td>${b.created_by}</td>
+        <td>${new Date(b.updated_at).toLocaleString()}</td>
+      </tr>`).join('');
+  }
+
+  document.getElementById('btnAdd').addEventListener('click', async ()=>{
+    const batch_scrap = document.getElementById('batch_scrap').value.trim();
+    const description = document.getElementById('description').value.trim();
+    const valid_from = document.getElementById('valid_from').value;
+    const valid_to = document.getElementById('valid_to').value;
+
+    if(!batch_scrap) return alert('⚠️ Nhập tên Batch.');
+    if(!valid_from || !valid_to) return alert('⚠️ Chọn ngày hiệu lực.');
+
+    const { error } = await client
+      .from('Batch_Master')
+      .insert([{ batch_scrap, description, valid_from, valid_to, created_by: 'admin' }]);
+    if (error) msg.textContent = '❌ Lỗi thêm batch: ' + error.message;
+    else { msg.textContent = '✅ Đã thêm batch thành công!'; loadBatches(); }
+  });
+
+document.getElementById('btnUpdateBatch').addEventListener('click', async ()=>{
+  const batch = document.getElementById('batchScrap').value.trim();
+  const from = document.getElementById('batchFrom').value;
+  const to = document.getElementById('batchTo').value;
+  const status = document.getElementById('batchStatus').value || null;
+  const user = getLoginUser() || 'admin';
+
+  if(!batch) return alert('⚠️ Nhập Batch Scrap trước.');
+
+  const { error } = await client.rpc('update_batch', {
+    p_batch_scrap: batch,
+    p_valid_from: from || null,
+    p_valid_to: to || null,
+    p_status: status,
+    p_updated_by: user
+  });
+
+  if(error) alert('❌ Lỗi: ' + error.message);
+  else alert('✅ Cập nhật batch thành công.');
+});
+  loadBatches();
+</script>
+
+</body>
+</html>
