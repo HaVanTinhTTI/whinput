@@ -312,7 +312,6 @@ document.getElementById('downloadBtn').addEventListener('click', downloadCDCESam
 
 // ===== ⚡️ MASS UPDATE TO SF_Master (BỎ QUA DÒNG TRÙNG, KHÔNG STOP) =====
 // ===== ⚡️ MASS UPDATE TO SF_Master (AUTO CHECK DUPLICATE BEFORE INSERT) =====
-// ===== ⚡️ MASS UPDATE TO SF_Master (THÊM Rev / Sub Inventory / Locator No) =====
 
 function chunk(arr, size = 200) {
   const res = [];
@@ -327,7 +326,9 @@ async function readExcelSF(file) {
       try {
         const data = new Uint8Array(e.target.result);
         const wb = XLSX.read(data, { type: 'array' });
-        const sheetName = wb.SheetNames.includes("Report") ? "Report" : wb.SheetNames[0];
+        const sheetName = wb.SheetNames.includes("Report")
+          ? "Report"
+          : wb.SheetNames[0];
         const ws = wb.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
         console.log(`📘 Đọc sheet: ${sheetName}, tổng ${rows.length} dòng`);
@@ -378,9 +379,11 @@ async function massInsertSFFast() {
       const orgCode = valOf(r, ['Org Code', 'OrgName']);
       const reason = valOf(r, ['Reason', 'ERPReason']);
       const qtyRaw = valOf(r, ['Scrap Qty', 'Quantity', 'SCRAP QTY']);
-      const rev = valOf(r, ['Rev', 'Revision']);
-      const subInv = valOf(r, ['Sub Inventory', 'SubInventory', 'SUB INVENTORY']);
-      const locator = valOf(r, ['Locator No', 'LocatorNo', 'LOCATOR NO']);
+	  
+	  const rev = valOf(r, ['Rev', 'Revision']);
+		const subInv = valOf(r, ['Sub Inventory', 'SubInventory', 'SUB INVENTORY']);
+		const locator = valOf(r, ['Locator No', 'LocatorNo', 'LOCATOR NO']);
+
 
       let qty = null;
       if (qtyRaw != null && qtyRaw !== '') {
@@ -393,10 +396,12 @@ async function massInsertSFFast() {
         ItemCode: itemCode ? String(itemCode).trim() : '',
         OrgName: orgCode ?? null,
         Quantity: qty,
-        Revision: rev ?? null,
-        from_sub: subInv ?? null,
-        locator_from: locator ?? null,
-        "Item Reference No.": formNo ? String(formNo).trim() : ''
+        "Item Reference No.": formNo ? String(formNo).trim() : '',
+		Revision: rev ? String(rev).trim() : 'NA',
+		from_sub: subInv ? String(subInv).trim() : 'NA',
+		locator_from: locator ? String(locator).trim() : 'NA',
+
+
       };
     }).filter(r => r.ItemCode && r["Item Reference No."]);
 
@@ -419,7 +424,7 @@ async function massInsertSFFast() {
       existing.map(r => `${r.OrgName?.trim()}||${r.ItemCode?.trim()}||${r["Item Reference No."]?.trim()}`)
     );
 
-    // === Lọc trùng nội bộ + trùng DB ===
+    // === Lọc trùng nội bộ + trùng với DB ===
     const seen = new Set();
     const uniqueRows = [];
     const dupRows = [];
@@ -434,7 +439,13 @@ async function massInsertSFFast() {
       }
     }
 
-    // === Insert batch ===
+    // === Chia batch & insert ===
+    const chunk = (arr, size = 200) => {
+      const res = [];
+      for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size));
+      return res;
+    };
+
     let inserted = 0, failed = 0;
     const batches = chunk(uniqueRows, 200);
 
