@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>K2_Master Data Editor</title>
+  <script src="https://unpkg.com/@supabase/supabase-js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <style>
+   /* ===== RESET CHUNG ===== */
+body {
+  font-family: Arial, sans-serif;
+  background: #f5f5f5;
+  margin: 0;
+  padding: 20px;
+}
+
+/* ===== KHUNG TOOLBAR & FILTER ===== */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  background: #ffffff;
+  padding: 12px 15px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.filter-bar label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.filter-bar input, 
+.filter-bar select {
+  padding: 5px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 150px;
+  background: #fff;
+}
+
+.filter-bar button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.filter-bar button:hover {
+  background: #0056b3;
+}
+
+#spinner { display: none; }
+.ok { color: green; }
+.error { color: red; font-weight: bold; }
+
+/* ===== TOOLBAR PHỤ ===== */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+button:hover { background: #0056b3; }
+
+input, select {
+  padding: 5px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* ===== BẢNG CHÍNH ===== */
+.table-container {
+  width: fit-content;      /* ✅ Mở rộng theo nội dung */
+  max-width: 100%;         /* Giới hạn trong vùng hiển thị */
+  overflow-x: auto;        /* Chỉ cuộn ngang khi cần */
+  overflow-y: visible;     /* Cho phép header sticky */
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  border: 1px solid #ddd;
+}
+
+/* ===== BẢNG ===== */
+#dataTable {
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: auto !important; /* ✅ Auto-fit cột */
+  width: auto;                   /* ✅ Co giãn đúng nội dung */
+  min-width: 100%;
+}
+
+/* ===== HEADER (CỐ ĐỊNH) ===== */
+#dataTable th {
+  position: sticky;
+  top: 0;
+  background: #f8f9fa;
+  border-bottom: 2px solid #ccc;
+  box-shadow: 0 2px 3px rgba(0,0,0,0.08);
+  z-index: 5;
+  text-align: left;
+  padding: 6px 10px;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* ===== DỮ LIỆU TRONG Ô ===== */
+#dataTable td {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  text-align: left;
+  background: white;
+  vertical-align: middle;
+
+  /* ✅ Cho phép tự giãn và xuống dòng khi cần */
+  white-space: normal;
+  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 500px; /* Không cho cột quá dài */
+}
+
+/* ===== HOVER DÒNG ===== */
+#dataTable tbody tr:hover {
+  background: #f6faff;
+}
+
+/* ===== Ô CÓ THỂ CHỈNH SỬA ===== */
+#dataTable td[contenteditable="true"] {
+  background: #fff8dc;
+  outline: none;
+}
+
+/* ===== THANH CUỘN TUỲ CHỈNH ===== */
+.table-container::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.table-container::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 5px;
+}
+
+/* ===== SIDEBAR CHỌN CỘT ===== */
+.sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 260px;
+  height: 100vh;
+  background: #ffffff;
+  border-left: 1px solid #ddd;
+  box-shadow: -2px 0 6px rgba(0,0,0,0.1);
+  padding: 15px;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  z-index: 9999;
+}
+.sidebar.open { transform: translateX(0); }
+
+.sidebar h3 {
+  margin-top: 0;
+  color: #007bff;
+  font-size: 16px;
+  text-align: center;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 10px;
+}
+
+.sidebar label {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.sidebar label:hover { background: #f0f4ff; }
+.sidebar input[type="checkbox"] { margin-right: 6px; }
+
+/* ===== THANH PHÂN TRANG ===== */
+.pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border-top: 1px solid #ddd;
+  border-radius: 0 0 10px 10px;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+
+.pagination-bar button {
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 13px;
+  cursor: poi
+.sidebar {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  opacity: 0;
+}
+.sidebar.open {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+#status {
+  transition: opacity 0.4s ease;
+  opacity: 0;
+  font-weight: bold;
+}
+.ok { color: green; }
+.error { color: red; }
+
+.col-search {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #eee;
+  z-index: 1;
+}
+
+#columnSearch {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  outline: none;
+}
+
+#columnSearch:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0,123,255,.15);
+}
+
+#columnCount {
+  display: inline-block;
+  margin-top: 6px;
+  color: #666;
+  font-size: 12px;
+}
+
+.filter-builder {
+  background: #fff;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  max-width: 600px;
+  margin: 10px auto;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.filter-row select, .filter-row input {
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.filter-row .remove-row {
+  background: #ff4d4f;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+  </style>
+</head>
+<body>
+
+
+<!-- ===== BỘ LỌC DỮ LIỆU ===== -->
+<!-- ===== BỘ LỌC DỮ LIỆU (NÂNG CẤP DROP-DOWN) ===== -->
+
+<div class="filter-bar">
+  <label>🧩 Type Scrap:
+    <input id="filterTypeScrap" list="listTypeScrap" placeholder="Nhập hoặc chọn..." />
+    <datalist id="listTypeScrap"></datalist>
+  </label>
+  <label>📄 Status:
+    <input id="filterStatus" list="listStatus" placeholder="Nhập hoặc chọn..." />
+    <datalist id="listStatus"></datalist>
+  </label>
+  <label>🧾 Form No:
+    <input id="filterFormNo" list="listFormNo" placeholder="Nhập hoặc chọn..." />
+    <datalist id="listFormNo"></datalist>
+  </label>
+  <label>🔍 ItemCode:
+    <input id="filterItemCode" list="listItemCode" placeholder="Nhập hoặc chọn..." />
+    <datalist id="listItemCode"></datalist>
+  </label>
+  <button id="applyFilterBtn">🔎 Lọc</button>
+  <button id="resetFilterBtn">♻️ Reset</button>
+  <button id="addMainFilterBtn">➕ Thêm điều kiện</button>
+
+  <button id="loadBtn">🔄 Tải dữ liệu</button>
+    <button id="saveBtn">💾 Lưu thay đổi</button>
+    <button id="exportBtn">⬇️ Xuất Excel</button>
+    <button id="toggleColumnsBtn">⚙️ Chọn cột</button>
+	<button id="applyToAllBtn">📋 Apply to all rows</button>
+    <span id="spinner">⏳ Đang tải...</span>
+	
+</div>
+
+
+  
+
+
+
+<!-- ⚙️ SIDEBAR CHỌN CỘT -->
+
+<div id="columnsPanel" class="sidebar">
+  <h3>Hiển thị cột</h3>
+
+  <!-- 🔎 Tìm nhanh tên cột -->
+  <div class="col-search">
+    <input id="columnSearch" type="text" placeholder="Tìm tên cột..." />
+    <small id="columnCount"></small>
+  </div>
+
+  <div id="columnsList"></div>
+</div>
+
+<div id="extraFilters" style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0;"></div>
+
+
+
+
+
+
+
+
+<div class="table-container" style="overflow:auto; max-height:75vh;">
+  <table id="dataTable">
+	
+  
+  
+    <thead><tr id="tableHead"></tr></thead>
+	
+	
+    <tbody></tbody>
+	
+
+  </table>
+  
+</div>
+<div class="pagination-bar" style="justify-content:center; margin-top:10px;">
+  <button id="prevPage">⬅️ Trước</button>
+  <span id="pageInfo">Trang 1/1</span>
+  <button id="nextPage">➡️ Sau</button>
+  <span style="margin-left:20px;">Số dòng/trang:</span>
+  <select id="pageSizeSelect">
+    <option value="25">25</option>
+    <option value="50" selected>50</option>
+    <option value="100">100</option>
+    <option value="200">200</option>
+	<option value="200">500</option>
+	
+  </select>
+  <p id="status"></p>
+</div>
+
+
+</div>
+
+<script>
+const client = supabase.createClient(
+  'https://chjqassbtcqthueeddou.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoanFhc3NidGNxdGh1ZWVkZG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzY2OTgsImV4cCI6MjA3NTcxMjY5OH0.FbWGSw9sqUkb2_ppErN4QTFGy1Cho-HX4XbR5_-KB0I'
+);
+
+const allColumns = [
+  "ActivityName","CompletedDate","EHS_Classification_waste","EHS_Type","EHS_VN_description","ERPReason",
+  "ERPReasonName","ID","InventoryItemID","Item Reference No.","ItemCode","ItemSystemDesc","ItemType",
+  "MRDetailID","MRRequestID","OrgName","Organization_ID","Quantity","QuantityDefect","QuantityIssued",
+  "QuantityPerAssembly","Remaining Qty","ResponsibleDeptCode","ResponsibleDeptDesc","ReturnType","Revision",
+  "StatusDesc","SubmittedDate","Submitter","UOM","approve_time","batch_scrap","created_at","eForm Process Status",
+  "form_no","from_sub","locator_from","lot","org","pack_by","pack_time","pallet_id","pallet_seq","printed_at",
+  "printed_by","putaway_by","putaway_time","qty_receipt","receipt_date_time","received_by","scrap_by",
+  "scrap_time","scrap_time_custom","status","submit_K2_time","team","type_scrap"
+];
+
+let visibleCols = [
+	"org",
+	"form_no",
+	"ItemCode",
+  "Quantity",
+  "qty_receipt",
+  "status"
+
+
+			];
+let currentData = [];
+
+
+let pageSize = 50;   // số dòng mỗi trang mặc định
+let totalCount = 0; // ✅ Tổng số dòng trên server
+
+let currentPage = 1; // trang hiện tại
+let totalPages = 1;
+
+let currentFilters = {}; // ✅ Lưu lại filter hiện tại để dùng khi chuyển trang
+
+
+let currentSort = { column: null, asc: true };
+
+
+function $(id){ return document.getElementById(id); }
+function showStatus(msg,ok=true){ $('status').textContent=msg; $('status').className=ok?'ok':'error'; }
+
+// ===== Toggle columns UI =====
+// ===== Tạo danh sách checkbox =====
+
+
+let sidebarTimer = null;
+
+$('toggleColumnsBtn').addEventListener('click', () => {
+  const panel = $('columnsPanel');
+
+  // ✅ Mở ngay lập tức
+  if (!panel.classList.contains('open')) {
+    panel.classList.add('open');
+    startSidebarTimer(); // bắt đầu đếm ngược để ẩn
+  } else {
+    panel.classList.remove('open'); // click lần 2 thì đóng ngay
+    clearTimeout(sidebarTimer);
+  }
+});
+
+function startSidebarTimer() {
+  clearTimeout(sidebarTimer);
+  sidebarTimer = setTimeout(() => {
+    $('columnsPanel').classList.remove('open');
+  }, 1500); // ẩn sau 1.5 giây nếu không di chuột vào
+}
+
+// 🧠 Khi rê chuột vào => tạm dừng auto-hide
+$('columnsPanel').addEventListener('mouseenter', () => {
+  clearTimeout(sidebarTimer);
+});
+
+// 🧠 Khi rời chuột => bắt đầu đếm lại 1.5 giây để ẩn
+$('columnsPanel').addEventListener('mouseleave', () => {
+  startSidebarTimer();
+});
+
+
+
+////tải trang
+$('nextPage').addEventListener('click', () => {
+  if (currentPage < totalPages) loadPagedData(currentPage + 1, currentFilters);
+});
+$('prevPage').addEventListener('click', () => {
+  if (currentPage > 1) loadPagedData(currentPage - 1, currentFilters);
+});
+
+
+$('pageSizeSelect').addEventListener('change', e=>{
+  pageSize = parseInt(e.target.value,10);
+  currentPage = 1;
+  renderTable(currentData);
+});
+
+
+
+// --- Utils: bỏ dấu + lower-case để so khớp linh hoạt
+function slugify(str) {
+  return String(str || '')
+    .normalize('NFD')               // tách dấu
+    .replace(/[\u0300-\u036f]/g, '')// bỏ dấu
+    .toLowerCase()
+    .trim();
+}
+
+const colListDiv = $('columnsList');
+const columnSearchInput = $('columnSearch');
+const columnCountEl = $('columnCount');
+
+function buildColumnsList() {
+  colListDiv.innerHTML = '';
+  // tạo DOM 1 lần, gắn data-name để lọc nhanh
+  allColumns.forEach(col => {
+    const id = 'col_' + col.replace(/\W/g, '_');
+    const lbl = document.createElement('label');
+    lbl.dataset.name = col; // giữ tên gốc để filter
+    const checked = visibleCols.includes(col) ? 'checked' : '';
+    lbl.innerHTML = `
+      <input type="checkbox" id="${id}" ${checked}>
+      ${col}
+    `;
+
+    lbl.querySelector('input').addEventListener('change', (e) => {
+      if (e.target.checked) {
+        if (!visibleCols.includes(col)) visibleCols.push(col);
+      } else {
+        visibleCols = visibleCols.filter(c => c !== col);
+      }
+      renderTable(currentData);
+      updateColumnCount(); // cập nhật đếm sau khi ẩn/hiện
+    });
+
+    colListDiv.appendChild(lbl);
+  });
+
+  updateColumnCount();
+}
+
+// filter theo input
+function filterColumnsList() {
+  const q = slugify(columnSearchInput.value);
+  const labels = colListDiv.querySelectorAll('label');
+  let visible = 0;
+
+  labels.forEach(lbl => {
+    const name = lbl.dataset.name || '';
+    const match = slugify(name).includes(q);
+    lbl.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+
+  updateColumnCount(visible);
+}
+
+function updateColumnCount(visibleOverride) {
+  const total = allColumns.length;
+  const visible = (typeof visibleOverride === 'number')
+    ? visibleOverride
+    : [...colListDiv.querySelectorAll('label')].filter(l => l.style.display !== 'none').length;
+
+  columnCountEl.textContent = `Hiển thị ${visible}/${total} cột`;
+}
+
+// Debounce nhỏ để cảm giác mượt (nhưng hiển thị gần như tức thì)
+let searchTimer = null;
+columnSearchInput.addEventListener('input', () => {
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(filterColumnsList, 120);
+});
+
+// Khởi tạo danh sách cột lúc load
+buildColumnsList();
+
+// ===== Load data =====
+
+async function loadPagedData(page = 1, filters = {}) {
+
+  $('spinner').style.display = 'inline';
+
+  const from = (page - 1) * pageSize;
+  const to = page * pageSize - 1;
+
+  const escapedCols = allColumns.map(c => /[\s\.]/.test(c) ? `"${c}"` : c);
+
+  let q = client
+    .from('K2_Master')
+    .select(escapedCols.join(','), { count: 'exact' })
+	.order('ItemCode', { ascending: true }) // sắp theo ItemCode ngay từ DB nếu được
+    .order('created_at', { ascending: false })
+    .range(from, to); // ✅ Chỉ lấy đúng phạm vi của trang hiện tại
+
+  // 🧩 Lọc (nếu có)
+  if (filters.type_scrap) q = q.ilike('type_scrap', `%${filters.type_scrap}%`);
+  if (filters.status) q = q.ilike('status', `%${filters.status}%`);
+  if (filters.form_no) q = q.ilike('form_no', `%${filters.form_no}%`);
+  if (filters.ItemCode) q = q.ilike('ItemCode', `%${filters.ItemCode}%`);
+
+  const { data, count, error } = await q;
+
+  $('spinner').style.display = 'none';
+  if (error) {
+    showStatus('❌ Lỗi tải: ' + error.message, false);
+    return;
+  }
+
+  currentData = data;
+  totalCount = count || 0;                  // ✅ lưu tổng số dòng
+totalPages = Math.ceil(totalCount / pageSize); // ✅ tính tổng số trang
+
+  totalPages = Math.ceil(count / pageSize);
+  currentPage = page;
+
+  renderTable(currentData);
+  updatePagination();
+  showStatus(`✅ Trang ${currentPage}/${totalPages} — ${data.length} dòng`);
+}
+
+
+// 🧩 Helper: unique values
+function getUniqueValues(rows, field) {
+  return [...new Set(rows.map(r => r[field]).filter(v => v))].sort();
+}
+
+async function loadDropdownOptionsFull() {
+  const { data, error } = await client
+    .from('K2_Master')
+    .select('type_scrap, status, form_no, ItemCode');
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  const getUnique = (arr, key) =>
+    [...new Set(arr.map(r => r[key]).filter(Boolean))].sort();
+
+  fillList('listTypeScrap', getUnique(data, 'type_scrap'));
+  fillList('listStatus', getUnique(data, 'status'));
+  fillList('listFormNo', getUnique(data, 'form_no'));
+  fillList('listItemCode', getUnique(data, 'ItemCode'));
+}
+
+
+
+// 🧩 Cập nhật datalist theo dataset hiện tại
+function updateDropdownOptions(dataset) {
+  fillList('listTypeScrap', getUniqueValues(dataset, 'type_scrap'));
+  fillList('listStatus',    getUniqueValues(dataset, 'status'));
+  fillList('listFormNo',    getUniqueValues(dataset, 'form_no'));
+  fillList('listItemCode',  getUniqueValues(dataset, 'ItemCode'));
+}
+
+function fillList(id, values) {
+  const dl = $(id);
+  const sorted = [...values]
+    .map(v => String(v || '').trim())
+    .filter(v => v)
+    .sort((a, b) => a.localeCompare(b, 'vi', { sensitivity: 'base' })); // sắp theo anpha tiếng Việt nếu có dấu
+  dl.innerHTML = sorted.map(v => `<option value="${v}">`).join('');
+}
+
+
+// 🪝 Gán sự kiện 1 lần để rút gọn gợi ý theo những gì đang gõ
+(function bindFilterInputsOnce(){
+  function onFilterTyping() {
+    const f1 = $('filterTypeScrap').value.trim().toLowerCase();
+    const f2 = $('filterStatus').value.trim().toLowerCase();
+    const f3 = $('filterFormNo').value.trim().toLowerCase();
+    const f4 = $('filterItemCode').value.trim().toLowerCase();
+
+    let temp = [...currentData]; // dựa trên dataset hiện hữu trên UI
+    if (f1) temp = temp.filter(r => String(r.type_scrap || '').toLowerCase().includes(f1));
+    if (f2) temp = temp.filter(r => String(r.status || '').toLowerCase().includes(f2));
+    if (f3) temp = temp.filter(r => String(r.form_no || '').toLowerCase().includes(f3));
+    if (f4) temp = temp.filter(r => String(r.ItemCode || '').toLowerCase().includes(f4));
+
+    updateDropdownOptions(temp); // rút gọn suggestion
+  }
+  ['filterTypeScrap','filterStatus','filterFormNo','filterItemCode'].forEach(id=>{
+    $(id).addEventListener('input', onFilterTyping);
+    $(id).addEventListener('change', onFilterTyping);
+  });
+})();
+
+
+// ===== Render table =====
+function renderTable(rows) {
+  const head = $("tableHead");
+  head.innerHTML = "";
+  visibleCols.forEach((c) => {
+    const th = document.createElement("th");
+    th.textContent = c.toUpperCase();
+    th.style.cursor = "pointer";
+    th.title = "Nhấn để sắp xếp";
+
+    th.addEventListener("click", () => {
+      if (currentSort.column === c) currentSort.asc = !currentSort.asc;
+      else currentSort = { column: c, asc: true };
+
+      currentData.sort((a, b) => {
+        let valA = a[c];
+        let valB = b[c];
+
+        const isNumA = /^-?\d+(\.\d+)?$/.test(valA);
+        const isNumB = /^-?\d+(\.\d+)?$/.test(valB);
+        if (isNumA && isNumB) {
+          valA = Number(valA);
+          valB = Number(valB);
+          return currentSort.asc ? valA - valB : valB - valA;
+        }
+        return currentSort.asc
+          ? String(valA || "").localeCompare(String(valB || ""))
+          : String(valB || "").localeCompare(String(valA || ""));
+      });
+
+      renderTable(currentData);
+    });
+		
+    if (currentSort.column === c) {
+      th.textContent += currentSort.asc ? " ▲" : " ▼";
+    }
+    head.appendChild(th);
+  });
+
+  const body = $("dataTable").querySelector("tbody");
+  body.innerHTML = "";
+rows.forEach((r, i) => {
+  const tr = document.createElement("tr");
+  visibleCols.forEach((col) => {
+    const td = document.createElement("td");
+    let val = r[col];
+
+    if (typeof val === "string" && /^-?\d+(\.\d+)?$/.test(val.trim()))
+      val = Number(val);
+    if (val === null || val === undefined) val = "";
+
+    // ✅ Nếu là cột ngày thì hiển thị lịch (date picker)
+  // ✅ Nếu là cột ngày thì hiển thị lịch (date picker)
+if (["created_at", "approve_time", "SubmittedDate", "CompletedDate"].includes(col)) {
+  const input = document.createElement("input");
+  input.type = "date";
+  input.value = val
+    ? new Date(val).toISOString().split("T")[0]
+    : new Date().toISOString().split("T")[0];
+  input.style.width = "140px";
+  input.dataset.row = i;
+  input.dataset.col = col;
+
+  input.addEventListener("change", (e) => {
+    const rowIndex = e.target.dataset.row;
+    const field = e.target.dataset.col;
+    const newVal = e.target.value;
+    currentData[rowIndex][field] = newVal; // ✅ Cập nhật tạm
+    td.dataset.updated = true;
+    td.style.background = "#fff8dc"; // đổi màu khi chỉnh
+  });
+
+  td.textContent = "";
+  td.appendChild(input);
+}
+
+	
+	
+	else {
+      // ✅ Cột khác thì giữ dạng contentEditable bình thường
+      td.textContent = val;
+      td.contentEditable = true;
+      td.dataset.row = i;
+      td.dataset.col = col;
+    }
+
+    tr.appendChild(td);
+  });
+  body.appendChild(tr);
+});
+
+
+
+  updatePagination();
+}
+
+
+// ===== APPLY TO ALL ROWS =====
+// ===== APPLY TO ALL ROWS (NHẬN CẢ INPUT & DATE FIELD) =====
+// ===== APPLY TO ALL ROWS (CẢ Ô VÀ INPUT NGÀY) =====
+let lastClickedCell = null;
+
+// 🧩 Ghi nhớ ô được click hoặc focus
+document.addEventListener("focusin", (e) => {
+  const td = e.target.closest("td");
+  if (td && td.dataset.col) {
+    lastClickedCell = td;
+  }
+});
+document.addEventListener("click", (e) => {
+  const td = e.target.closest("td");
+  if (td && td.dataset.col) {
+    lastClickedCell = td;
+  }
+});
+
+$('applyToAllBtn').addEventListener('click', () => {
+  const cell = lastClickedCell;
+  if (!cell) {
+    showStatus('⚠️ Chọn 1 ô hoặc input bất kỳ trước khi dùng Apply to all rows', false);
+    return;
+  }
+
+  const col = cell.dataset.col;
+  let val = '';
+
+  // Nếu là input date thì lấy value, còn contenteditable thì lấy text
+  const input = cell.querySelector('input');
+  if (input) val = input.value.trim();
+  else val = cell.textContent.trim();
+
+  if (!val) {
+    showStatus('⚠️ Không thể áp dụng giá trị trống', false);
+    return;
+  }
+
+  if (!confirm(`Áp dụng giá trị "${val}" cho toàn bộ cột ${col.toUpperCase()}?`)) return;
+
+  // ✅ Áp dụng vào toàn bộ cột (bao gồm input hoặc text)
+  document.querySelectorAll(`td[data-col="${col}"]`).forEach(td => {
+    const inp = td.querySelector('input');
+    if (inp) inp.value = val;
+    else td.textContent = val;
+
+    td.dataset.updated = true;
+    td.style.background = '#fff8dc';
+
+    // ✅ Ghi nhận thay đổi vào edits để khi Save sẽ lưu tất cả
+    const rowIndex = Number(td.dataset.row);
+    const original = currentData[rowIndex];
+    if (!original) return;
+
+    const key = original.ID || JSON.stringify({
+      OrgName: original.OrgName,
+      ItemCode: original.ItemCode,
+      "Item Reference No.": original["Item Reference No."],
+      locator_from: original.locator_from,
+      from_sub: original.from_sub,
+      lot: original.lot
+    });
+
+    if (!edits.has(key)) edits.set(key, {});
+    edits.get(key)[col] = val;
+    currentData[rowIndex][col] = val; // đồng bộ local
+  });
+
+  showStatus(`✅ Đã áp dụng "${val}" cho toàn bộ cột ${col} và ghi nhận để lưu`, true);
+});
+
+
+
+
+///Hiển thị bao nhiêu trang
+function updatePagination() {
+  $('pageInfo').textContent = `Trang ${currentPage}/${totalPages || 1} — Tổng ${totalCount} dòng`;
+
+  $('prevPage').disabled = currentPage <= 1;
+  $('nextPage').disabled = currentPage >= totalPages;
+}
+
+
+
+// ===== Track edits =====
+
+// ===== TRACK CHỈ CÁC Ô THAY ĐỔI =====
+const edits = new Map();
+
+document.addEventListener("focusin", (e) => {
+  if (e.target.matches('td[contenteditable="true"]')) {
+    e.target.dataset.oldValue = e.target.textContent.trim();
+  }
+});
+
+document.addEventListener("input", (e) => {
+  if (e.target.matches('td[contenteditable="true"]')) {
+    const rowIndex = Number(e.target.dataset.row);
+    const col = e.target.dataset.col;
+    let val = e.target.textContent.trim();
+
+    // ép số nếu cần
+    if (/^-?\d+(\.\d+)?$/.test(val)) val = Number(val);
+
+    const original = currentData[rowIndex]; // ✅ Dòng thật trong currentData
+    if (!original) return; // tránh undefined
+
+    // nếu bảng có khóa phức hợp, lấy ra đúng các field khóa chính
+    const key = original.ID || JSON.stringify({
+      OrgName: original.OrgName,
+      ItemCode: original.ItemCode,
+      "Item Reference No.": original["Item Reference No."],
+      locator_from: original.locator_from,
+      from_sub: original.from_sub,
+      lot: original.lot
+    });
+
+    if (!edits.has(key)) edits.set(key, {});
+    edits.get(key)[col] = val;
+  }
+});
+
+// ===== LƯU LẠI Ô CUỐI CÙNG ĐƯỢC CLICK HOẶC FOCUS =====
+//let lastClickedCell = null;
+
+// 🧩 Khi click vào ô (hoặc input trong ô), ghi nhớ lại trước khi mất focus
+document.addEventListener("mousedown", (e) => {
+  const td = e.target.closest("td");
+  if (td && td.dataset.col) {
+    lastClickedCell = td;
+  }
+});
+
+// 🧩 Khi focus vào ô (ví dụ dùng Tab hoặc click vào input date)
+document.addEventListener("focusin", (e) => {
+  const td = e.target.closest("td");
+  if (td && td.dataset.col) {
+    lastClickedCell = td;
+  }
+});
+
+
+
+// ===== SAVE CHỈ DÒNG THAY ĐỔI =====
+$('saveBtn').addEventListener('click', async () => {
+  if (edits.size === 0) {
+    showStatus('⚠️ Không có thay đổi để lưu', false);
+    return;
+  }
+
+  $('spinner').style.display = 'inline';
+
+  const updates = [];
+  edits.forEach((cols, key) => {
+    let parsedKey;
+    try {
+      parsedKey = JSON.parse(key);
+    } catch {
+      parsedKey = null;
+    }
+
+    // Nếu là khóa phức hợp (OrgName, ItemCode, ReferenceNo, locator_from, from_sub, lot)
+    if (parsedKey) {
+      updates.push({ ...cols, ...parsedKey });
+    }
+  });
+
+  if (updates.length === 0) {
+    $('spinner').style.display = 'none';
+    showStatus('⚠️ Không có dòng hợp lệ để lưu (thiếu khóa chính)', false);
+    return;
+  }
+
+  let success = 0, fail = 0;
+  const batchSize = 50;
+
+  for (let i = 0; i < updates.length; i += batchSize) {
+    const batch = updates.slice(i, i + batchSize);
+    const { error } = await client
+      .from('K2_Master')
+      .upsert(batch, {
+        onConflict: 'OrgName,ItemCode,"Item Reference No.",locator_from,from_sub,lot'
+      });
+
+    if (error) {
+      fail += batch.length;
+      console.error('❌ Lỗi Supabase:', error);
+    } else {
+      success += batch.length;
+    }
+
+    await new Promise(r => setTimeout(r, 100));
+  }
+
+ $('spinner').style.display = 'none';
+
+// ✅ Nếu có lỗi thì giữ lâu, nếu không thì tự ẩn nhanh
+if (fail > 0) {
+  showStatus(`⚠️ Lưu xong: ${success} dòng | Lỗi: ${fail}`, false);
+} else {
+  showStatus(`💾 Lưu xong: ${success} dòng`, true, 2000); // ✅ tự ẩn sau 2 giây
+}
+
+edits.clear();
+//await loadPagedData(currentPage, currentFilters); // ✅ reload lại trang hiện tại
+
+});
+
+let statusTimer;
+
+// ✅ Hàm hiển thị trạng thái (thông báo thành công hoặc lỗi)
+function showStatus(msg, ok = true, duration = 5000) {
+  let el = document.getElementById('status');
+
+  // Nếu chưa có phần tử <p id="status"> thì tạo mới
+  if (!el) {
+    el = document.createElement('p');
+    el.id = 'status';
+    document.body.appendChild(el);
+  }
+
+  // Hiển thị thông báo
+  el.textContent = msg;
+  el.className = ok ? 'ok' : 'error';
+  el.style.opacity = '1';
+  el.style.transition = 'opacity 0.4s ease';
+  el.style.fontWeight = 'bold';
+  el.style.margin = '8px 0';
+  el.style.fontSize = '13px';
+  el.style.color = ok ? 'green' : 'red';
+
+  // ✅ Nếu là thông báo thành công thì tự ẩn sau vài giây
+  if (ok) {
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(() => {
+      el.style.opacity = '0';
+    }, duration);
+  }
+  // ❌ Nếu là lỗi thì giữ nguyên cho đến khi có hành động mới
+}
+
+
+// ===== Export Excel =====
+$('exportBtn').addEventListener('click',()=>{
+  if(!currentData.length) return showStatus('⚠️ Không có dữ liệu để xuất',false);
+
+  const exportData = currentData.slice(0, 5000); // ✅ Giới hạn 5000 dòng
+  const filtered = exportData.map(row=>{
+    const obj={};
+    visibleCols.forEach(c=>obj[c]=row[c]??'');
+    return obj;
+  });
+
+  const ws=XLSX.utils.json_to_sheet(filtered);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'K2_Master');
+  XLSX.writeFile(wb,'K2_Master_export.xlsx');
+  showStatus(`✅ Đã xuất ${filtered.length} dòng ra Excel!`);
+});
+
+
+$('applyFilterBtn').addEventListener('click', () => {
+  if (!currentData.length) {
+    showStatus('⚠️ Chưa có dữ liệu. Bấm "Tải dữ liệu" trước khi lọc.', false);
+    return;
+  }
+
+  const baseFilters = {
+    type_scrap: $('filterTypeScrap').value.trim().toLowerCase(),
+    status: $('filterStatus').value.trim().toLowerCase(),
+    form_no: $('filterFormNo').value.trim().toLowerCase(),
+    ItemCode: $('filterItemCode').value.trim().toLowerCase(),
+  };
+
+  const extraRows = [...document.querySelectorAll('#extraFilters label')];
+  const extraFilters = extraRows.map(row => {
+    const col = row.querySelector('select')?.value;
+    const val = row.querySelector('input')?.value.trim().toLowerCase();
+    return { col, val };
+  }).filter(f => f.col && f.val);
+
+  let filtered = currentData.filter(row => {
+    const baseOK = Object.entries(baseFilters).every(([k, v]) =>
+      !v || String(row[k] || '').toLowerCase().includes(v)
+    );
+    const extraOK = extraFilters.every(f =>
+      String(row[f.col] || '').toLowerCase().includes(f.val)
+    );
+    return baseOK && extraOK;
+  });
+
+  renderTable(filtered);
+  showStatus(`✅ Lọc xong (${filtered.length} dòng)`, true);
+});
+
+
+
+
+
+
+$('resetFilterBtn').addEventListener('click', () => {
+  $('filterTypeScrap').value = '';
+  $('filterStatus').value = '';
+  $('filterFormNo').value = '';
+  $('filterItemCode').value = '';
+  currentFilters = {};
+  renderTable(currentData); // hiển thị lại toàn bộ data có sẵn
+  showStatus('♻️ Đã reset filter, hiển thị toàn bộ dữ liệu hiện có', true);
+});
+
+
+// ===== Load data on button =====
+$('loadBtn').addEventListener('click', () => loadPagedData(1));  // Giữ lại nút tải thủ công
+
+
+// ===== 🔍 FILTER NÂNG CAO (Dynamic Filter Builder) =====
+
+
+
+
+function createMainFilterRow() {
+  const wrap = document.createElement('label');
+  wrap.style.display = 'flex';
+  wrap.style.alignItems = 'center';
+  wrap.style.gap = '5px';
+  wrap.style.background = '#fff';
+  wrap.style.padding = '4px 6px';
+  wrap.style.border = '1px solid #ccc';
+  wrap.style.borderRadius = '6px';
+
+  const colSel = document.createElement('select');
+  colSel.style.padding = '4px';
+  colSel.innerHTML = allColumns
+    .map(c => `<option value="${c}">${c}</option>`).join('');
+
+  const valInput = document.createElement('input');
+  valInput.type = 'text';
+  valInput.placeholder = 'Nhập hoặc chọn...';
+  valInput.style.padding = '4px';
+  valInput.style.border = '1px solid #ccc';
+  valInput.style.borderRadius = '4px';
+
+  const listId = 'list_' + Math.random().toString(36).substring(2,9);
+  valInput.setAttribute('list', listId);
+  const datalist = document.createElement('datalist');
+  datalist.id = listId;
+
+  const removeBtn = document.createElement('button');
+  removeBtn.textContent = '❌';
+  removeBtn.style.marginLeft = '4px';
+  removeBtn.addEventListener('click', () => wrap.remove());
+
+  wrap.append(colSel, valInput, datalist, removeBtn);
+
+  // --- cập nhật gợi ý unique theo currentData ---
+ function updateDatalist() {
+  const col = colSel.value;
+  let filtered = [...currentData];
+  // lọc trước theo các filter hiện có
+  document.querySelectorAll('#extraFilters label').forEach(lbl => {
+    const c = lbl.querySelector('select')?.value;
+    const v = lbl.querySelector('input')?.value.trim();
+    if (!c || !v) return;
+    filtered = filtered.filter(r => String(r[c]||'').toLowerCase().includes(v.toLowerCase()));
+  });
+  const uniqueVals = [...new Set(filtered.map(r => r[col]).filter(Boolean))].sort();
+  datalist.innerHTML = uniqueVals.slice(0, 200).map(v => `<option value="${v}">`).join('');
+}
+
+
+  colSel.addEventListener('change', updateDatalist);
+  updateDatalist();
+
+  return wrap;
+}
+
+
+
+
+
+  // 🔥 Gọi hàm để khởi động khi load trang
+
+let lastCell = null;
+document.getElementById('addMainFilterBtn').addEventListener('click', () => {
+  const area = document.getElementById('extraFilters');
+  area.appendChild(createMainFilterRow());
+});
+
+document.addEventListener('focusin', e => {
+  if (e.target.matches('td[contenteditable="true"]')) lastCell = e.target;
+});
+document.addEventListener('click', e => {
+  if (e.target.matches('td[contenteditable="true"]')) lastCell = e.target;
+});
+
+// ✅ Bọc phần khởi động trong hàm async để dùng await hợp lệ
+
+ async function init() {
+  await loadPagedData(1);           // chỉ tải 1 lần duy nhất
+  updateDropdownOptions(currentData); // tự tạo datalist dựa trên data đã có
+
+}
+
+init();  // 🔥 Gọi hàm để khởi động khi load trang
+
+//initDynamicFilter(); // ✅ GỌI THÊM DÒNG NÀY
+
+
+
+</script>
+</body>
+</html>
