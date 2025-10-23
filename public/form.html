@@ -403,41 +403,41 @@ async function massInsertSFFast() {
     }
 
     // === Chuẩn hóa dữ liệu đầu vào ===
-    const cleaned = rows.map(r => {
-      const itemCode = valOf(r, ['Item Code', 'ItemCode']);
-      const formNo = valOf(r, ['Form No', 'FormNo', 'Form No.', 'FORM NO']);
-      const orgCode = valOf(r, ['Org Code', 'OrgName']);
-      const qtyRaw = valOf(r, ['Scrap Qty', 'Quantity', 'SCRAP QTY']);
-	  
-	  const rev = valOf(r, ['Rev', 'Revision']);
-		const subInv = valOf(r, ['Sub Inventory', 'SubInventory', 'SUB INVENTORY']);
-		const locator = valOf(r, ['Locator No', 'LocatorNo', 'LOCATOR NO']);
+    
+	
+	const cleaned = rows.map(r => {
+  const itemCodeRaw = valOf(r, ['Item Code', 'ItemCode']);
+  const formNo = valOf(r, ['Form No', 'FormNo', 'Form No.', 'FORM NO']);
+  const orgCode = valOf(r, ['Org Code', 'OrgName']);
+  const qtyRaw = valOf(r, ['Scrap Qty', 'Quantity', 'SCRAP QTY']);
+  const rev = valOf(r, ['Rev', 'Revision']);
+  const subInv = valOf(r, ['Sub Inventory', 'SubInventory', 'SUB INVENTORY']);
+  const locator = valOf(r, ['Locator No', 'LocatorNo', 'LOCATOR NO']);
 
-		
-  // 🔧 Xử lý ItemCode
-  let ItemCode = itemCodeRaw ? String(itemCodeRaw).replace(/\s+/g, '').trim() : '';
+  // 🔧 Xử lý ItemCode (giữ đúng biến và chính tả)
+  let itemCode = itemCodeRaw ? String(itemCodeRaw).replace(/\s+/g, '').trim() : '';
   if (/^\d+$/.test(itemCode)) {
-    itemCode = ItemCode.padStart(9, '0'); // ép đủ 9 chữ số
+    itemCode = itemCode.padStart(9, '0'); // ép đủ 9 chữ số
   }
-      let qty = null;
-      if (qtyRaw != null && qtyRaw !== '') {
-        const n = Number(String(qtyRaw).replace(/,/g, '').trim());
-        if (!isNaN(n)) qty = n;
-      }
 
-      return {
-        
-        ItemCode: itemCode ? String(itemCode).trim() : '',
-        OrgName: orgCode ?? null,
-        Quantity: qty,
-        "Item Reference No.": formNo ? String(formNo).trim() : '',
-		Revision: rev ? String(rev).trim() : 'NA',
-		from_sub: subInv ? String(subInv).trim() : 'NA',
-		locator_from: locator ? String(locator).trim() : 'NA',
+  // 🔧 Xử lý Quantity
+  let qty = null;
+  if (qtyRaw != null && qtyRaw !== '') {
+    const n = Number(String(qtyRaw).replace(/,/g, '').trim());
+    if (!isNaN(n)) qty = n;
+  }
 
+  return {
+    ItemCode: itemCode,
+    OrgName: orgCode ?? null,
+    Quantity: qty,
+    "Item Reference No.": formNo ? String(formNo).trim() : '',
+    Revision: rev ? String(rev).trim() : 'NA',
+    from_sub: subInv ? String(subInv).trim() : 'NA',
+    locator_from: locator ? String(locator).trim() : 'NA',
+  };
+}).filter(r => r.ItemCode && r["Item Reference No."]);
 
-      };
-    }).filter(r => r.ItemCode && r["Item Reference No."]);
 
     if (!cleaned.length) {
       spinner.style.display = 'none';
