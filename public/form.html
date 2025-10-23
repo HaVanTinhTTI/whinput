@@ -198,117 +198,129 @@ function isRowChanged(newRow, oldRow) {
 }
 
 
-window.massUpdateK2Master = async function()
- {
-		const startTime = performance.now();
-	  const input = document.getElementById('massUpload');
-	  const files = input.files;
-	  if (!files.length) return showStatus('⚠️ Chưa chọn file.', true, 'update');
 
-	  let inserted = 0, updated = 0, failed = 0, skipped = 0, total = 0;
-	  const failedDetails = [];
+window.massUpdateK2Master = async function() {
+  const startTime = performance.now();
+  const input = document.getElementById('massUpload');
+  const files = input.files;
+  if (!files.length) return showStatus('⚠️ Chưa chọn file.', true, 'update');
 
-	  for (const file of files) {
-		const rows = await readExcel(file);
-		total += rows.length;
-	//lock
-	document.getElementById('loading-spinner').style.display = 'block'
+  let inserted = 0, updated = 0, failed = 0, skipped = 0, total = 0;
+  const failedDetails = [];
 
-		const mrIDs = rows.map(r => Number(r.MRDetailID)).filter(Boolean);
-		const chunkedIDs = chunkArray(mrIDs, 200);
-		let existingRows = [];
-
-		for (const chunk of chunkedIDs) {
-		  const { data, error } = await client
-			.from('K2_Master')
-			.select('*')
-			.in('MRDetailID', chunk);
-
-		  if (error) {
-			showStatus('❌ Lỗi khi load MRDetailID: ' + error.message, true, 'update');
-			return;
-		  }
-
-		  existingRows = existingRows.concat(data);
-		}
-
-		const existingMap = new Map(existingRows.map(r => [r.MRDetailID, r]));
-		const toInsert = [];
-		const toUpdate = [];
-
-		for (const row of rows) {
-		  const mrDetailID = Number(row.MRDetailID);
-		  if (!mrDetailID) continue;
-
-		  const cleanRow = {};
-		  for (const key of validColumns) {
-			if (row.hasOwnProperty(key) && row[key] !== null && row[key] !== undefined && row[key] !== '') {
-			  cleanRow[key] = row[key];
-			}
-		  }
-
-		  if (Object.keys(cleanRow).length === 0) continue;
-
-		  const oldRow = existingMap.get(mrDetailID);
-		  if (oldRow) {
-			if (isRowChanged(cleanRow, oldRow)) {
-			  toUpdate.push(cleanRow);
-			} else {
-			  skipped++;
-			}
-		  } else {
-			toInsert.push(cleanRow);
-		  }
-		}
-
-		if (toUpdate.length) {
-		  const { error: upErr } = await client
-  .from('K2_Master')
-  .upsert(toUpdate, { onConflict: '"OrgName", "ItemCode", "Item Reference No."' });
-
-		  
-		  
-		  if (upErr) {
-			failed += toUpdate.length;
-			failedDetails.push('❌ Update batch lỗi: ' + upErr.message);
-		  } else {
-			updated += toUpdate.length;
-		  }
-		}
-
-		
-
-		if (toInsert.length) {
-		 
-		  const { error: inErr } = await client.from('K2_Master')
-		 
-		  
-		  .insert(toInsert);
-		  if (inErr) {
-			failed += toInsert.length;
-			failedDetails.push('❌ Insert batch lỗi: ' + inErr.message);
-		  } else {
-			inserted += toInsert.length;
-		  }
-		}
+  // 🧩 1️⃣ Vô hiệu tất cả trigger trước khi upload
+  try {
+    await client.rpc('exec_sql', {
+      sql: `ALTER TABLE public."K2_Master" DISABLE TRIGGER USER;`
+    });
+    console.log('⚙️ Đã tạm tắt trigger K2_Master');
+  } 
+  catch (err) {
+    console.warn('⚠️ Không thể disable trigger:', err.message || err);
   }
 
-const endTime = performance.now();
-const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(2);
+  try {
+    for (const file of files) {
+      const rows = await readExcel(file);
+      total += rows.length;
+      document.getElementById('loading-spinner').style.display = 'block';
 
+      const mrIDs = rows.map(r => Number(r.MRDetailID)).filter(Boolean);
+      const chunkedIDs = chunkArray(mrIDs, 200);
+      let existingRows = [];
+
+      for (const chunk of chunkedIDs) {
+        const { data, error } = await client
+          .from('K2_Master')
+          .select('*')
+          .in('MRDetailID', chunk);
+
+        if (error) {
+          showStatus('❌ Lỗi khi load MRDetailID: ' + error.message, true, 'update');
+          return;
+        }
+
+        existingRows = existingRows.concat(data);
+      }
+
+      const existingMap = new Map(existingRows.map(r => [r.MRDetailID, r]));
+      const toInsert = [];
+      const toUpdate = [];
+
+      for (const row of rows) {
+        const mrDetailID = Number(row.MRDetailID);
+        if (!mrDetailID) continue;
+        const cleanRow = {};
+        for (const key of validColumns) {
+          if (row.hasOwnProperty(key) && row[key] != null && row[key] !== '') {
+            cleanRow[key] = row[key];
+          }
+        }
+        if (!Object.keys(cleanRow).length) continue;
+
+        const oldRow = existingMap.get(mrDetailID);
+        if (oldRow) {
+          if (isRowChanged(cleanRow, oldRow)) {
+            toUpdate.push(cleanRow);
+          } else skipped++;
+        } else {
+          toInsert.push(cleanRow);
+        }
+      }
+
+      // ✅ Chia nhỏ batch để tránh timeout
+      const batchSize = 100;
+      for (let i = 0; i < toUpdate.length; i += batchSize) {
+        const batch = toUpdate.slice(i, i + batchSize);
+        console.log(`🔄 Update batch ${i / batchSize + 1} (${batch.length})`);
+        const { error } = await client
+          .from('K2_Master')
+          .upsert(toUpdate, { onConflict: 'OrgName,ItemCode,"Item Reference No.",locator_from,from_sub,lot' });
+
+        if (error) {
+          failed += batch.length;
+          failedDetails.push(error.message);
+        } else updated += batch.length;
+        await new Promise(r => setTimeout(r, 300));
+      }
+
+      for (let i = 0; i < toInsert.length; i += batchSize) {
+        const batch = toInsert.slice(i, i + batchSize);
+        console.log(`🟢 Insert batch ${i / batchSize + 1} (${batch.length})`);
+        const { error } = await client.from('K2_Master').insert(batch, { returning: 'minimal' });
+        if (error) {
+          failed += batch.length;
+          failedDetails.push(error.message);
+        } else inserted += batch.length;
+        await new Promise(r => setTimeout(r, 300));
+      }
+    }
+  } finally {
+    // 🧩 2️⃣ Bật lại trigger sau khi upload xong
+    try {
+      await client.rpc('exec_sql', {
+        sql: `ALTER TABLE public."K2_Master" ENABLE TRIGGER USER;`
+      });
+      console.log('✅ Đã bật lại trigger K2_Master');
+    } catch (err) {
+      console.warn('⚠️ Không thể bật lại trigger:', err.message || err);
+    }
+  }
+
+  const endTime = performance.now();
+  const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(2);
   const result = `
 ✅ Hoàn tất upload ${files.length} file<br>
-⏱️ Thời gian xử lý: ${elapsedSeconds} giây<br>
-Tổng ${total} dòng:<br>
-➕ ${inserted} mới<br>
-🔄 ${updated} cập nhật<br>
-⏭️ ${skipped} bỏ qua<br>
+⏱️ ${elapsedSeconds}s<br>
+➕ ${inserted} mới<br>🔄 ${updated} cập nhật<br>
 ❌ ${failed} lỗi<br>
-${failed > 0 ? '<br><b>Chi tiết lỗi:</b><br>' + failedDetails.join('<br>') : ''}
+${failed > 0 ? failedDetails.join('<br>') : ''}
   `;
   document.getElementById('loading-spinner').style.display = 'none';
   showStatus(result, failed > 0, 'update');
 };
+
+
 
 
 
@@ -322,7 +334,7 @@ document.getElementById('downloadBtn').addEventListener('click', downloadCDCESam
 // ===== ⚡️ MASS UPDATE TO SF_Master (BỎ QUA DÒNG TRÙNG, KHÔNG STOP) =====
 // ===== ⚡️ MASS UPDATE TO SF_Master (AUTO CHECK DUPLICATE BEFORE INSERT) =====
 
-function chunk(arr, size = 200) {
+function chunk(arr, size = 100) {
   const res = [];
   for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size));
   return res;
@@ -352,6 +364,15 @@ async function readExcelSF(file) {
 }
 
 async function massInsertSFFast() {
+	  try {
+    await client.rpc('exec_sql', {
+      sql: `ALTER TABLE public."K2_Master" DISABLE TRIGGER USER;`
+    });
+    console.log('⚙️ Đã tạm tắt trigger K2_Master');
+  } 
+  catch (err) {
+    console.warn('⚠️ Không thể disable trigger:', err.message || err);
+  }
   const fileInput = document.getElementById('sfMassUpload');
   const statusDiv = document.getElementById('status-update-sf');
   const spinner = document.getElementById('loading-spinner-sf');
@@ -386,7 +407,6 @@ async function massInsertSFFast() {
       const itemCode = valOf(r, ['Item Code', 'ItemCode']);
       const formNo = valOf(r, ['Form No', 'FormNo', 'Form No.', 'FORM NO']);
       const orgCode = valOf(r, ['Org Code', 'OrgName']);
-      const reason = valOf(r, ['Reason', 'ERPReason']);
       const qtyRaw = valOf(r, ['Scrap Qty', 'Quantity', 'SCRAP QTY']);
 	  
 	  const rev = valOf(r, ['Rev', 'Revision']);
@@ -401,7 +421,7 @@ async function massInsertSFFast() {
       }
 
       return {
-        ERPReason: reason ?? null,
+        
         ItemCode: itemCode ? String(itemCode).trim() : '',
         OrgName: orgCode ?? null,
         Quantity: qty,
@@ -439,7 +459,16 @@ async function massInsertSFFast() {
     const dupRows = [];
 
     for (const r of cleaned) {
-      const key = `${r.OrgName?.trim()}||${r.ItemCode?.trim()}||${r["Item Reference No."]?.trim()}`;
+      const key = [
+  r.OrgName?.trim(),
+  r.ItemCode?.trim(),
+  r["Item Reference No."]?.trim(),
+  r.Revision?.trim(),
+  r.Quantity?.toString().trim(),
+  r.from_sub?.trim(),
+  r.locator_from?.trim()
+].join('||');
+
       if (dbKeys.has(key) || seen.has(key)) {
         dupRows.push(r);
       } else {
@@ -449,14 +478,14 @@ async function massInsertSFFast() {
     }
 
     // === Chia batch & insert ===
-    const chunk = (arr, size = 200) => {
+    const chunk = (arr, size = 100) => {
       const res = [];
       for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size));
       return res;
     };
 
     let inserted = 0, failed = 0;
-    const batches = chunk(uniqueRows, 200);
+    const batches = chunk(uniqueRows, 100);
 
     for (const [index, b] of batches.entries()) {
       console.log(`🟩 Batch ${index + 1}/${batches.length}: ${b.length} rows`);
@@ -470,28 +499,127 @@ async function massInsertSFFast() {
       }
 
       await new Promise(r => setTimeout(r, 120));
+	  
     }
+try {
+      await client.rpc('exec_sql', {
+        sql: `ALTER TABLE public."K2_Master" ENABLE TRIGGER USER;`
+      });
+      console.log('✅ Đã bật lại trigger K2_Master');
+    } catch (err) {
+      console.warn('⚠️ Không thể bật lại trigger:', err.message || err);
+    }
+  
+  // === Kết quả ===
+spinner.style.display = 'none';
 
-    // === Kết quả ===
-    spinner.style.display = 'none';
-    statusDiv.innerHTML = `
-✅ Đã thêm mới: ${inserted} dòng<br>
-⚠️ Bỏ qua (đã tồn tại hoặc trùng nội bộ): ${dupRows.length} dòng<br>
-❌ Lỗi khác: ${failed} dòng
-    `;
-    statusDiv.className = failed ? 'error' : 'ok';
+// 🧩 Hiển thị chi tiết các dòng trùng nội bộ
+let resultHTML = '';
+if (dupRows.length > 0) {
+  // Tạo bảng HTML chi tiết
+  let rowsHTML = '';
+  dupRows.forEach((r, i) => {
+    rowsHTML += `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${r.OrgName || ''}</td>
+        <td>${r.ItemCode || ''}</td>
+        <td>${r["Item Reference No."] || ''}</td>
+        <td>${r.Revision || ''}</td>
+        <td>${r.Quantity || ''}</td>
+        <td>${r.from_sub || ''}</td>
+        <td>${r.locator_from || ''}</td>
+      </tr>`;
+  });
 
-  } catch (err) {
-    spinner.style.display = 'none';
-    statusDiv.innerHTML = `❌ Lỗi: ${err.message}`;
-    statusDiv.className = 'error';
-  }
+  const tableHTML = `
+    <h4>⚠️ Danh sách ${dupRows.length} dòng bị trùng nội bộ / đã tồn tại</h4>
+    <table border="1" cellspacing="0" cellpadding="4"
+      style="border-collapse:collapse; width:100%; font-size:13px;">
+      <thead style="background:#f0f0f0; text-align:left;">
+        <tr>
+          <th>#</th>
+          <th>OrgName</th>
+          <th>ItemCode</th>
+          <th>Item Reference No.</th>
+          <th>Revision</th>
+          <th>Quantity</th>
+          <th>from_sub</th>
+          <th>locator_from</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHTML}</tbody>
+    </table>
+    <button id="exportDupBtn" style="
+      margin-top:10px; background:#22c55e; color:white;
+      border:none; padding:8px 12px; border-radius:6px; cursor:pointer;">
+      ⬇️ Export duplicate rows
+    </button>
+  `;
+
+  resultHTML =
+    '✅ Đã thêm mới: ' + inserted + ' dòng<br>' +
+    '⚠️ Bỏ qua (đã tồn tại hoặc trùng nội bộ): ' + dupRows.length + ' dòng<br>' +
+    '❌ Lỗi khác: ' + failed + ' dòng<br><br>' +
+    tableHTML;
+} else {
+  resultHTML =
+    '✅ Đã thêm mới: ' + inserted + ' dòng<br>' +
+    '⚠️ Không có dòng trùng nội bộ<br>' +
+    '❌ Lỗi khác: ' + failed + ' dòng';
 }
 
-document.getElementById('sfMassUploadBtn')
-  .addEventListener('click', massInsertSFFast);
+statusDiv.innerHTML = resultHTML;
+statusDiv.className = failed ? 'error' : 'ok';
 
+// 🧩 Export ra Excel
+const exportBtn = document.getElementById('exportDupBtn');
+if (exportBtn) {
+  exportBtn.addEventListener('click', () => {
+  // 🧩 Sort theo ItemCode A → Z
+  const sortedDup = dupRows.slice().sort((a, b) => {
+    const itemA = String(a.ItemCode || '').toLowerCase();
+    const itemB = String(b.ItemCode || '').toLowerCase();
+    return itemA.localeCompare(itemB, 'en', { numeric: true });
+  });
 
+  const ws = XLSX.utils.json_to_sheet(sortedDup);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Duplicate_Rows');
+    XLSX.writeFile(wb, 'SF_Duplicate_Internal.xlsx');
+    alert(`✅ Đã export ${dupRows.length} dòng trùng nội bộ ra file SF_Duplicate_Internal.xlsx`);
+  });
+}
+
+  } catch (err) {
+    console.error('❌ Lỗi tổng thể:', err);
+    statusDiv.textContent = '❌ Lỗi: ' + err.message;
+    statusDiv.className = 'error';
+  } finally {
+    spinner.style.display = 'none';
+    // Luôn bật lại trigger nếu có lỗi bất ngờ
+    try {
+      await client.rpc('exec_sql', {
+        sql: `ALTER TABLE public."K2_Master" ENABLE TRIGGER USER;`
+      });
+    } catch (err) {
+      console.warn('⚠️ Không thể bật lại trigger trong finally:', err.message || err);
+    }
+  }
+}
+  
+// 🧩 GẮN SỰ KIỆN CHO NÚT UPLOAD
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('sfMassUploadBtn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      console.log("🚀 Gọi massInsertSFFast()...");
+      massInsertSFFast();
+    });
+  } else {
+    console.warn("⚠️ Không tìm thấy nút #sfMassUploadBtn trong DOM");
+  }
+});
 
 /////SCP
 // ===== ⚡️ MASS UPDATE TO SCP_Master (KEY = ItemCode + Item Reference No.) =====
