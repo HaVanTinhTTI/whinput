@@ -413,7 +413,12 @@ async function massInsertSFFast() {
 		const subInv = valOf(r, ['Sub Inventory', 'SubInventory', 'SUB INVENTORY']);
 		const locator = valOf(r, ['Locator No', 'LocatorNo', 'LOCATOR NO']);
 
-
+		
+  // 🔧 Xử lý ItemCode
+  let ItemCode = itemCodeRaw ? String(itemCodeRaw).replace(/\s+/g, '').trim() : '';
+  if (/^\d+$/.test(itemCode)) {
+    itemCode = ItemCode.padStart(9, '0'); // ép đủ 9 chữ số
+  }
       let qty = null;
       if (qtyRaw != null && qtyRaw !== '') {
         const n = Number(String(qtyRaw).replace(/,/g, '').trim());
