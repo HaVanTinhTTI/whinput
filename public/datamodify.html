@@ -217,7 +217,8 @@ input, select {
   border-radius: 6px;
   padding: 5px 12px;
   font-size: 13px;
-  cursor: poi
+  cursor: pointer;
+}
 .sidebar {
   transition: transform 0.3s ease, opacity 0.3s ease;
   opacity: 0;
@@ -388,7 +389,10 @@ input, select {
     <option value="50" selected>50</option>
     <option value="100">100</option>
     <option value="200">200</option>
-	<option value="200">500</option>
+	<option value="500">500</option>
+	<option value="1000">1000</option>
+	<option value="1000">2000</option>
+	<option value="1000">5000</option>
 	
   </select>
   <p id="status"></p>
@@ -421,7 +425,7 @@ let visibleCols = [
 	"form_no",
 	"ItemCode",
   "Quantity",
-  "printed_by,
+  "printed_by",
   "qty_receipt",
   "qty_pack",
   "qty_open_pack",
@@ -444,8 +448,7 @@ let totalPages = 1;
 
 let currentFilters = {}; // ✅ Lưu lại filter hiện tại để dùng khi chuyển trang
 
-
-let currentSort = { column: null, asc: true };
+let currentSort = { column: 'ItemCode', asc: true }; // mặc định
 
 
 function $(id){ return document.getElementById(id); }
@@ -497,11 +500,9 @@ $('prevPage').addEventListener('click', () => {
   if (currentPage > 1) loadPagedData(currentPage - 1, currentFilters);
 });
 
-
 $('pageSizeSelect').addEventListener('change', e=>{
-  pageSize = parseInt(e.target.value,10);
-  currentPage = 1;
-  renderTable(currentData);
+  pageSize = parseInt(e.target.value,10) || 50;
+  loadPagedData(1, currentFilters);
 });
 
 
@@ -596,10 +597,24 @@ async function loadPagedData(page = 1, filters = {}) {
 
   let q = client
     .from('K2_Master')
-    .select(escapedCols.join(','), { count: 'exact' })
-	.order('ItemCode', { ascending: true }) // sắp theo ItemCode ngay từ DB nếu được
-    .order('created_at', { ascending: false })
-    .range(from, to); // ✅ Chỉ lấy đúng phạm vi của trang hiện tại
+    .select(escapedCols.join(','), { count: 'exact' });
+
+  // ---- LỌC (áp trước range) ----
+  if (filters.type_scrap) q = q.ilike('type_scrap', `%${filters.type_scrap}%`);
+  if (filters.status)     q = q.ilike('status', `%${filters.status}%`);
+  if (filters.form_no)    q = q.ilike('form_no', `%${filters.form_no}%`);
+  if (filters.ItemCode)   q = q.ilike('ItemCode', `%${filters.ItemCode}%`);
+
+  // ---- SẮP XẾP (server-side) ----
+  if (currentSort?.column) {
+    q = q.order(currentSort.column, { ascending: !!currentSort.asc });
+  }
+  // Thứ tự phụ ổn định
+  q = q.order('created_at', { ascending: false });
+
+  // ---- PHÂN TRANG ----
+  q = q.range(from, to);
+
 
   // 🧩 Lọc (nếu có)
   if (filters.type_scrap) q = q.ilike('type_scrap', `%${filters.type_scrap}%`);
@@ -619,7 +634,7 @@ async function loadPagedData(page = 1, filters = {}) {
   totalCount = count || 0;                  // ✅ lưu tổng số dòng
 totalPages = Math.ceil(totalCount / pageSize); // ✅ tính tổng số trang
 
-  totalPages = Math.ceil(count / pageSize);
+
   currentPage = page;
 
   renderTable(currentData);
@@ -633,42 +648,58 @@ function getUniqueValues(rows, field) {
   return [...new Set(rows.map(r => r[field]).filter(v => v))].sort();
 }
 
+
+
+// 🔹 Lấy DISTINCT giá trị cho các filter dropdown từ bảng K2_Master
+
+
+// 🔹 Lấy DISTINCT giá trị cho các filter dropdown từ bảng K2_Master (chuẩn hóa tên cột)
 async function loadDropdownOptionsFull() {
-  const { data, error } = await client
-    .from('K2_Master')
-    .select('type_scrap, status, form_no, ItemCode');
-  if (error) {
-    console.error(error);
-    return;
+  const distinctCols = [
+    { key: 'type_scrap', dbCol: 'type_scrap' },
+    { key: 'status', dbCol: 'status' },
+    { key: 'form_no', dbCol: 'form_no' },
+    { key: 'ItemCode', dbCol: '"ItemCode"' } // 👈 có chữ hoa, cần thêm dấu ngoặc kép
+  ];
+
+  const distinctData = {};
+
+  for (const col of distinctCols) {
+    const { data, error } = await client
+      .from('K2_Master')
+      .select(`${col.dbCol}`, { distinct: true })
+      .order(col.dbCol, { ascending: true });
+
+    if (error) {
+      console.error(`❌ Lỗi lấy distinct cho ${col.dbCol}:`, error);
+      continue;
+    }
+
+    // Chuẩn hóa kết quả về dạng mảng giá trị duy nhất
+    distinctData[col.key] = [...new Set(data.map(r => r[col.key] ?? r[col.dbCol]).filter(Boolean))];
   }
 
-  const getUnique = (arr, key) =>
-    [...new Set(arr.map(r => r[key]).filter(Boolean))].sort();
-
-  fillList('listTypeScrap', getUnique(data, 'type_scrap'));
-  fillList('listStatus', getUnique(data, 'status'));
-  fillList('listFormNo', getUnique(data, 'form_no'));
-  fillList('listItemCode', getUnique(data, 'ItemCode'));
+  fillList('listTypeScrap', distinctData['type_scrap']);
+  fillList('listStatus', distinctData['status']);
+  fillList('listFormNo', distinctData['form_no']);
+  fillList('listItemCode', distinctData['ItemCode']);
 }
-
 
 
 // 🧩 Cập nhật datalist theo dataset hiện tại
-function updateDropdownOptions(dataset) {
-  fillList('listTypeScrap', getUniqueValues(dataset, 'type_scrap'));
-  fillList('listStatus',    getUniqueValues(dataset, 'status'));
-  fillList('listFormNo',    getUniqueValues(dataset, 'form_no'));
-  fillList('listItemCode',  getUniqueValues(dataset, 'ItemCode'));
-}
+
+
 
 function fillList(id, values) {
-  const dl = $(id);
-  const sorted = [...values]
-    .map(v => String(v || '').trim())
+  const dl = document.getElementById(id);
+  if (!dl) return;
+  const sorted = (values || [])
+    .map(v => String(v).trim())
     .filter(v => v)
-    .sort((a, b) => a.localeCompare(b, 'vi', { sensitivity: 'base' })); // sắp theo anpha tiếng Việt nếu có dấu
+    .sort((a, b) => a.localeCompare(b, 'vi', { sensitivity: 'base' }));
   dl.innerHTML = sorted.map(v => `<option value="${v}">`).join('');
 }
+
 
 
 // 🪝 Gán sự kiện 1 lần để rút gọn gợi ý theo những gì đang gõ
@@ -703,29 +734,46 @@ function renderTable(rows) {
     th.textContent = c.toUpperCase();
     th.style.cursor = "pointer";
     th.title = "Nhấn để sắp xếp";
+th.addEventListener("click", () => {
+  // toggle hướng sort
+  if (currentSort.column === c) currentSort.asc = !currentSort.asc;
+  else currentSort = { column: c, asc: true };
 
-    th.addEventListener("click", () => {
-      if (currentSort.column === c) currentSort.asc = !currentSort.asc;
-      else currentSort = { column: c, asc: true };
+  // Danh sách cột numeric (ghi đúng tên cột trong allColumns)
+  const numericCols = [
+    "Quantity", "qty_receipt", "qty_pack", "qty_open_pack",
+    "Remaining Qty", "total_cost", "total_weight"
+  ];
 
-      currentData.sort((a, b) => {
-        let valA = a[c];
-        let valB = b[c];
+  // Chuẩn hóa tên cột để so khớp
+  const normalized = String(c).replace(/\s+/g, "_").toLowerCase();
+  const isNumericCol = numericCols.some(col =>
+    normalized === col.replace(/\s+/g, "_").toLowerCase()
+  );
 
-        const isNumA = /^-?\d+(\.\d+)?$/.test(valA);
-        const isNumB = /^-?\d+(\.\d+)?$/.test(valB);
-        if (isNumA && isNumB) {
-          valA = Number(valA);
-          valB = Number(valB);
-          return currentSort.asc ? valA - valB : valB - valA;
-        }
-        return currentSort.asc
-          ? String(valA || "").localeCompare(String(valB || ""))
-          : String(valB || "").localeCompare(String(valA || ""));
-      });
+  console.log("Sorting column:", c, "Numeric:", isNumericCol);
 
-      renderTable(currentData);
-    });
+  // Sắp xếp data
+  currentData.sort((a, b) => {
+    let valA = a[c];
+    let valB = b[c];
+
+    if (isNumericCol) {
+      valA = parseFloat(valA) || 0;
+      valB = parseFloat(valB) || 0;
+      return currentSort.asc ? valA - valB : valB - valA;
+    }
+
+    // sắp theo text
+    return currentSort.asc
+      ? String(valA || "").localeCompare(String(valB || ""))
+      : String(valB || "").localeCompare(String(valA || ""));
+  });
+
+  renderTable(currentData);
+});
+
+
 		
     if (currentSort.column === c) {
       th.textContent += currentSort.asc ? " ▲" : " ▼";
@@ -1120,39 +1168,19 @@ $('exportBtn').addEventListener('click',()=>{
 
 
 $('applyFilterBtn').addEventListener('click', () => {
-  if (!currentData.length) {
-    showStatus('⚠️ Chưa có dữ liệu. Bấm "Tải dữ liệu" trước khi lọc.', false);
-    return;
-  }
-
   const baseFilters = {
-    type_scrap: $('filterTypeScrap').value.trim().toLowerCase(),
-    status: $('filterStatus').value.trim().toLowerCase(),
-    form_no: $('filterFormNo').value.trim().toLowerCase(),
-    ItemCode: $('filterItemCode').value.trim().toLowerCase(),
+    type_scrap: $('filterTypeScrap').value.trim(),
+    status:     $('filterStatus').value.trim(),
+    form_no:    $('filterFormNo').value.trim(),
+    ItemCode:   $('filterItemCode').value.trim(),
   };
 
-  const extraRows = [...document.querySelectorAll('#extraFilters label')];
-  const extraFilters = extraRows.map(row => {
-    const col = row.querySelector('select')?.value;
-    const val = row.querySelector('input')?.value.trim().toLowerCase();
-    return { col, val };
-  }).filter(f => f.col && f.val);
+  // lưu lại để chuyển trang vẫn giữ filter
+  currentFilters = { ...baseFilters };
 
-  let filtered = currentData.filter(row => {
-    const baseOK = Object.entries(baseFilters).every(([k, v]) =>
-      !v || String(row[k] || '').toLowerCase().includes(v)
-    );
-    const extraOK = extraFilters.every(f =>
-      String(row[f.col] || '').toLowerCase().includes(f.val)
-    );
-    return baseOK && extraOK;
-  });
-
-  renderTable(filtered);
-  showStatus(`✅ Lọc xong (${filtered.length} dòng)`, true);
+  // gọi lại server để lọc toàn bảng -> phân trang
+  loadPagedData(1, currentFilters);
 });
-
 
 
 
@@ -1160,12 +1188,12 @@ $('applyFilterBtn').addEventListener('click', () => {
 
 $('resetFilterBtn').addEventListener('click', () => {
   $('filterTypeScrap').value = '';
-  $('filterStatus').value = '';
-  $('filterFormNo').value = '';
-  $('filterItemCode').value = '';
+  $('filterStatus').value    = '';
+  $('filterFormNo').value    = '';
+  $('filterItemCode').value  = '';
   currentFilters = {};
-  renderTable(currentData); // hiển thị lại toàn bộ data có sẵn
-  showStatus('♻️ Đã reset filter, hiển thị toàn bộ dữ liệu hiện có', true);
+  loadPagedData(1, currentFilters);
+  showStatus('♻️ Đã reset filter', true);
 });
 
 
@@ -1256,8 +1284,9 @@ document.addEventListener('click', e => {
 // ✅ Bọc phần khởi động trong hàm async để dùng await hợp lệ
 
  async function init() {
-  await loadPagedData(1);           // chỉ tải 1 lần duy nhất
-  updateDropdownOptions(currentData); // tự tạo datalist dựa trên data đã có
+  await loadDropdownOptionsFull();  // ✅ lấy distinct toàn bảng
+await loadPagedData(1);           // ✅ tải dữ liệu hiển thị
+ // tự tạo datalist dựa trên data đã có
 
 }
 
