@@ -330,6 +330,8 @@ input, select {
     <button id="exportBtn">⬇️ Xuất Excel</button>
     <button id="toggleColumnsBtn">⚙️ Chọn cột</button>
 	<button id="applyToAllBtn">📋 Apply to all rows</button>
+	<button id="clearColumnBtn">🧹 Clear column</button>
+
     <span id="spinner">⏳ Đang tải...</span>
 	
 </div>
@@ -402,35 +404,28 @@ const client = supabase.createClient(
 );
 
 const allColumns = [
-   "EHS_Classification_waste", "EHS_Type", "EHS_VN_description",
-  "ID", "Item Reference No.", "ItemCode", "ItemSystemDesc", "ItemType",
-  "MRDetailID", "MRRequestID", "OrgName", "Quantity", "Remaining Qty", "Revision",
+   "EHS_Classification_waste", "EHS_Type", "EHS_VN_description", "Item Reference No.", "ItemCode", "ItemSystemDesc", "ItemType",
+  "OrgName", "Quantity", "Remaining Qty", "Revision",
   "UOM", "approve_time", "batch_scrap", "created_at", "eForm Process Status",
   "form_no", "from_sub", "locator_from", "lot", "org", "pack_by", "pack_time",
-  "pallet_id", "pallet_seq", "printed_at", "printed_by", "putaway_by", "putaway_time",
+  "pallet_id", "printed_at", "printed_by", "putaway_by", "putaway_time",
   "qty_receipt", "receipt_date_time", "received_by", "scrap_by", "scrap_time",
-  "scrap_time_custom", "status", "submit_K2_time", "team", "type_scrap","box_id", 
-"id", 
-"last_pack_at", 
-"last_pack_by", 
-"last_pack_time", 
-"price_unit", 
-"qty_open_pack", 
-"qty_pack", 
-"total_cost", 
-"total_weight", 
-"weight_unit",
-	"physical_locator"
+  "scrap_time_custom", "status", "submit_K2_time", "team", "type_scrap","physical_locator","qty_open_pack","id", "qty_pack", "last_pack_at", "last_pack_by", 
+"last_pack_time", "total_cost", "total_weight", "price_unit", "weight_unit"
 
 ];
 
 let visibleCols = [
 	"org",
+	"pallet_id",
 	"form_no",
 	"ItemCode",
   "Quantity",
   "qty_receipt",
-  "status"
+  "qty_pack",
+  "qty_open_pack",
+  "status",
+  "physical_locator"
 
 
 			];
@@ -864,6 +859,54 @@ $('applyToAllBtn').addEventListener('click', () => {
   showStatus(`✅ Đã áp dụng "${val}" cho toàn bộ cột ${col} và ghi nhận để lưu`, true);
 });
 
+$('clearColumnBtn').addEventListener('click', () => {
+  if (!lastClickedCell) {
+    showStatus('⚠️ Chọn 1 ô trước khi dùng Clear column', false);
+    return;
+  }
+
+  const col = lastClickedCell.dataset.col;
+  if (!col) {
+    showStatus('⚠️ Không xác định được cột.', false);
+    return;
+  }
+
+  if (!confirm(`🧹 Bạn có chắc muốn xóa toàn bộ nội dung trong cột "${col}"?`)) return;
+
+  document.querySelectorAll(`td[data-col="${col}"]`).forEach(td => {
+    const rowIndex = Number(td.dataset.row);
+    if (isNaN(rowIndex)) return;
+
+    const original = currentData[rowIndex];
+    if (!original) return;
+
+    // ✅ Nếu là input date, gán null thay vì ''
+    const isDateField = col.toLowerCase().includes('time') || col.toLowerCase().includes('date');
+
+    // UI hiển thị
+    td.textContent = '';
+    td.style.background = '#fff8dc';
+    td.dataset.updated = true;
+
+    // ✅ Ghi local
+    currentData[rowIndex][col] = isDateField ? null : '';
+
+    // ✅ Ghi nhớ để lưu lên DB
+    const key = original.ID || JSON.stringify({
+      OrgName: original.OrgName,
+      ItemCode: original.ItemCode,
+      "Item Reference No.": original["Item Reference No."],
+      locator_from: original.locator_from,
+      from_sub: original.from_sub,
+      lot: original.lot
+    });
+
+    if (!edits.has(key)) edits.set(key, {});
+    edits.get(key)[col] = isDateField ? null : '';
+  });
+
+  showStatus(`✅ Đã xóa nội dung trong cột "${col}" (bao gồm null cho kiểu ngày)`, true);
+});
 
 
 
@@ -970,12 +1013,30 @@ $('saveBtn').addEventListener('click', async () => {
   const batchSize = 50;
 
   for (let i = 0; i < updates.length; i += batchSize) {
-    const batch = updates.slice(i, i + batchSize);
-    const { error } = await client
-      .from('K2_Master')
-      .upsert(batch, {
-        onConflict: 'OrgName,ItemCode,"Item Reference No.",locator_from,from_sub,lot'
-      });
+  const batch = updates.slice(i, i + batchSize).map(row => {
+    const clean = { ...row };
+
+    // 🔹 Nếu là cột date/time và giá trị rỗng → chuyển thành null
+    Object.keys(clean).forEach(k => {
+      if (
+        typeof clean[k] === 'string' &&
+        clean[k].trim() === '' &&
+        /(time|date)/i.test(k)
+      ) {
+        clean[k] = null;
+      }
+    });
+
+    return clean;
+  });
+
+  const { error } = await client
+    .from('K2_Master')
+    .upsert(batch, {
+      onConflict: 'OrgName,ItemCode,"Item Reference No.",locator_from,from_sub,lot'
+    });
+
+
 
     if (error) {
       fail += batch.length;
