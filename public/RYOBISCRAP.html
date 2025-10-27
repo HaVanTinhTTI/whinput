@@ -465,7 +465,65 @@ label, .input {
   border-radius: 7px;
   border: 1px s
 
-  
+  /* 🎯 Chỉ áp dụng cho bảng PACK */
+#packTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+/* Vùng bao quanh bảng PACK — cao vừa 1 màn hình PDA (~5 inch) */
+
+#sheet3 .table-wrap {
+  max-height: 420px;           /* ✨ chiều cao cố định (tầm 5 inch PDA) */
+  overflow-y: auto;            /* Cho phép cuộn dọc */
+  overflow-x: auto;            /* Cho phép cuộn ngang khi cần */
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  scroll-behavior: smooth;
+}
+
+/* Cải thiện hiển thị header cố định */
+#packTable thead th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  z-index: 2;
+  box-shadow: 0 2px 3px rgba(0,0,0,0.05);
+}
+
+#sheet3 .table-wrap {
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: auto;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  scroll-behavior: smooth;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.input.mini {
+  width: 130px;
+  padding: 6px 8px;
+  font-size: 14px;
+}
+
+@media (max-width: 480px) {
+  .row {
+    flex-wrap: wrap;
+  }
+  .input.mini {
+    flex: 1 1 45%; /* tự xuống hàng khi màn hình hẹp */
+  }
+}
+
   </style>
 </head>
 <body>
@@ -582,6 +640,7 @@ label, .input {
           <span class="pill">Số form: <b id="metaFormCount">0</b></span>
           <span class="pill">Dòng: <b id="metaRows">0</b></span>
           <span class="pill">Chọn: <b id="metaSel">0</b></span>
+		  
         </div>
         <div id="status" class="muted">🕓 Đang chờ thao tác...</div>
       </div>
@@ -623,15 +682,38 @@ label, .input {
         <option value="">⏳ Đang tải...</option>
       </select>
 
-      <button id="btnPackLoad" class="btn">📦 Tải Waiting Pack</button>
-      <button id="btnPackSelectAll" class="btn-ghost">✓ Chọn/Bỏ chọn tất cả</button>
+      
+      
+	  <button id="btnPackAction" class="btn">▶️ Thực hiện Pack</button>
+
       <span id="packMsg" class="muted">Chưa tải dữ liệu.</span>
     </div>
   </div>
 
-<select id="filterTeamPack" class="input mini">
-  <option value="">-- Lọc theo Team --</option>
-</select>
+<!-- Filter theo Team + Pallet Mode (cùng hàng) -->
+<div class="row" style="margin-top:6px; align-items:center; flex-wrap:wrap; gap:8px;">
+  <label for="filterTeamPack">👥 Team:</label>
+  <select id="filterTeamPack" class="input mini">
+    <option value="">-- Lọc theo Team --</option>
+  </select>
+
+  <label for="palletMode">🎯 Pallet:</label>
+  <select id="palletMode" class="input mini">
+    <option value="new">🆕 Mới</option>
+    <option value="exist">📦 Có sẵn</option>
+  </select>
+
+  <select id="existPalletList" class="input mini">
+    <option value="">-- Danh sách Pallet --</option>
+  </select>
+
+  <!-- 🔹 Hiển thị Pallet ID mới ngay bên cạnh -->
+  <span id="previewPalletID"
+        style="font-weight:bold; color:#2563eb; font-size:13px; white-space:nowrap;">
+  </span>
+</div>
+
+
 
 
   <div class="table-wrap">
@@ -639,11 +721,13 @@ label, .input {
       <thead>
         <tr>
           <th>#</th>
-          <th>Chọn</th>
+          <th><button id="btnPackSelectAll" class="btn-ghost">✓</button>All</th>
+		  
           <th>Form No</th>
           <th>ItemCode</th>
           <th>Quantity</th>
           <th>Status</th>
+		  <th>Team</th>
         </tr>
       </thead>
       <tbody id="packTbody">
@@ -705,8 +789,23 @@ const supabaseUrl = 'https://chjqassbtcqthueeddou.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoanFhc3NidGNxdGh1ZWVkZG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzY2OTgsImV4cCI6MjA3NTcxMjY5OH0.FbWGSw9sqUkb2_ppErN4QTFGy1Cho-HX4XbR5_-KB0I';
 const client = supabase.createClient(supabaseUrl, supabaseKey);
 
+(async () => {
+  const { data, error } = await client
+    .from('Receipt_logs')
+    .select('id, remaining_qty')
+    .limit(1);
+
+  if (error) {
+    console.error('⚠️ REST schema chưa cập nhật:', error.message);
+  } else {
+    console.log('✅ REST schema OK:', data);
+  }
+})();
+
+
+
 const SOURCE_TABLE  = 'K2_Master';
-const SOURCE_FIELDS = 'form_no,ItemCode,Quantity,"Remaining Qty",EHS_VN_description,EHS_Type,printed_at,receipt_date_time';
+const SOURCE_FIELDS = 'id,form_no,ItemCode,Quantity,"Remaining Qty",EHS_VN_description,EHS_Type,printed_at,receipt_date_time';
 const RECEIPT_TABLE = 'Receipt_logs';
 
 const LS_CACHE   = 'cache_k2_master_test';
@@ -718,32 +817,21 @@ const LS_AUTOUPL = 'receipt_autoupload';
 const RECEIPT_SCHEMA = 'k2style';
 const RECEIPT_MAPS = {
   k2style: {
-    form_no: 'form_no',
-    item_code: 'ItemCode',
-    remaining_qty: 'Remaining Qty',
-    ehs_vn_description: 'ehs_vn_description',
-    ehs_type: 'ehs_type',
-    type: 'type',
+    id: 'id',
+    remaining_qty: 'remaining_qty',   // ✅ Đúng tên thực tế trong DB
     team: 'team',
-    pallet_seq: 'pallet_seq',
-    pallet_id: 'pallet_id',
     created_at: 'created_at',
-    received_by: 'received_by'   // <— thêm
+    received_by: 'received_by'
   },
   snake: {
-    form_no: 'form_no',
-    item_code: 'item_code',
-    remaining_qty: 'remaining_qty',
-    ehs_vn_description: 'ehs_vn_description',
-    ehs_type: 'ehs_type',
-    type: 'type',
+    id: 'id',
+    remaining_qty: 'remaining_qty',   // ✅ tương tự
     team: 'team',
-    pallet_seq: 'pallet_seq',
-    pallet_id: 'pallet_id',
     created_at: 'created_at',
     received_by: 'received_by'
   }
 };
+
 const COL = RECEIPT_MAPS[RECEIPT_SCHEMA];
 
 /* ========== Elements (ID giữ nguyên) ========== */
@@ -869,7 +957,12 @@ document.getElementById('btnSyncIn').addEventListener('click', async ()=>{
 
     // 🟢 Lọc thêm: chỉ lấy Remaining Qty > 0
     const filtered = (data || []).filter(r => Number(r["Remaining Qty"]) > 0);
-
+	// 🔹 Gán id tạm cho dòng thiếu id từ K2
+filtered.forEach((r, idx) => {
+  if (!r.id || r.id === null) {
+    r.id = `K2TEMP_${Date.now()}_${idx}`;
+  }
+});
     if(!filtered.length){
       setCache({}); setLastSync();
       syncMsg.innerHTML = '<span class="warn">⚠️ Không có dòng nào thỏa điều kiện.</span>';
@@ -1046,14 +1139,22 @@ document.getElementById('btnSave').addEventListener('click', async ()=>{
   const records = [];
   for (const r of picked) {
     const rem = (r["Remaining Qty"] ?? '').toString().trim();
-    records.push({
-      form_no: r.form_no,
-      item_code: r.ItemCode,
-      remaining_qty: rem || null,
-      team: team,
-      created_at: nowVNString(),
-      status: 'pending'
-    });
+ let rid = r.id ?? r.ID ?? null;
+if (!rid) rid = `K2TEMP_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+
+
+records.push({
+  id: Number(String(r.id).trim()),
+  remaining_qty: rem === '' ? null : Number(rem),
+  team: team,
+  created_at: nowVNString(),
+  status: 'pending'
+});
+
+
+ 
+ 
+ 
   }
 
   const drafts = getDrafts();
@@ -1092,39 +1193,39 @@ function removePickedFromUIAndCache(picked){
 function _chunk(arr,size){ const out=[]; for(let i=0;i<arr.length;i+=size) out.push(arr.slice(i,i+size)); return out; }
 
 // Chuẩn hóa base — chèn received_by = user đăng nhập (hoặc 'system' nếu chưa có)
+
 function _normalizeBase(x){
+  const remRaw = x.remaining_qty ?? x["Remaining Qty"] ?? null;
+  const remNum = remRaw === null || remRaw === '' ? null : Number(remRaw);
   return {
-    form_no: String(x.form_no ?? '').trim(),
-    item_code: String(x.item_code ?? '').trim(),
-    remaining_qty: (x.remaining_qty===''||x.remaining_qty==null) ? null : String(x.remaining_qty).trim(),
-    type: x.type ?? null,
+    id: x.id ?? x.ID ?? null,
+    remaining_qty: remNum,   // ✅ ép sang numeric
     team: x.team ?? null,
-    pallet_seq: Number(x.pallet_seq ?? 1),
-    pallet_id: Number(x.pallet_id ?? 1),
     created_at: x.created_at ?? nowVNString(),
     received_by: getLoginUser() || 'system'
   };
 }
 
+
+
 // Map sang tên cột thực tế trên Receipt_logs (đÃ thêm received_by)
+
+
 function _toDbRow(x){
-  const r=_normalizeBase(x);
+  const r = _normalizeBase(x);
   return {
-    [COL.form_no]: r.form_no,
-    [COL.item_code]: r.item_code,
-    [COL.remaining_qty]: r.remaining_qty,
-    [COL.type]: r.type,
+    [COL.id]: r.id,
+    [COL.remaining_qty]: r.remaining_qty,  // ✅ ĐÚNG CỘT TRONG DB
     [COL.team]: r.team,
-    [COL.pallet_seq]: r.pallet_seq,
-    [COL.pallet_id]: r.pallet_id,
     [COL.created_at]: r.created_at,
     [COL.received_by]: r.received_by
   };
 }
 
+
 // Chỉ cho phép các cột này (khớp tên thực trong DB)
 const ALLOWED_RECEIPT_COLUMNS = [
-  'form_no','ItemCode','Remaining Qty','type','team','pallet_seq','pallet_id','created_at','received_by'
+  'id','remaining_qty','type','team','created_at','received_by'
 ];
 
 function sanitizePayload(items){
@@ -1209,51 +1310,43 @@ document.getElementById('btnClearCache').addEventListener('click', ()=>{
 
 
 
-
-
 /* ========== 📦 PACKING (STEP 1) ========== */
 const PACK_TABLE = 'K2_Master';
-const PACK_FIELDS = 'form_no,ItemCode,Quantity,status';
+const PACK_FIELDS = 'id,form_no,ItemCode,qty_receipt,status,team';
 const packTbody = document.getElementById('packTbody');
 const packMsg = document.getElementById('packMsg');
 const packMetaRows = document.getElementById('packMetaRows');
 const packMetaSel = document.getElementById('packMetaSel');
 const packStatus = document.getElementById('packStatus');
-let packRows = [];
+
+let packRowsAll = []; // dữ liệu gốc từ DB
+let packRows = [];    // dữ liệu hiển thị (sau filter)
 
 
-
-
+/* 🧩 Load danh sách team (để filter sau này) */
 async function loadFilterTeamOptions() {
   try {
     const { data, error } = await client
-      .from('K2_Master')
-      .select('team')
-      .eq('status', 'waiting pack')
-      .not('team', 'is', null);
-
+      .from(PACK_TABLE)
+      .select(PACK_FIELDS)
+      .ilike('status', '%waiting pack%');
     if (error) throw error;
 
-    const uniqueTeams = [...new Set(data.map(r => r.team.trim()))].filter(Boolean).sort();
+    const uniqueTeams = [...new Set(data.map(r => (r.team || '').trim()))]
+      .filter(Boolean)
+      .sort();
 
     const sel = document.getElementById('filterTeamPack');
     sel.innerHTML = `<option value="">-- Tất cả Team (${uniqueTeams.length}) --</option>` +
       uniqueTeams.map(t => `<option value="${t}">${t}</option>`).join('');
 
-    console.log(`✅ Load ${uniqueTeams.length} Team filter thành công`);
   } catch (err) {
     console.error('❌ Lỗi load Team Filter:', err.message);
   }
 }
 
-
-
-
-
-/* ========== 🔸 LOAD BATCH ACTIVE (STEP 1.5) ========== */
+/* 🧩 Load batch active */
 const packBatchSel = document.getElementById('packBatch');
-
-// Hàm tải danh sách Batch đang active
 async function loadActiveBatchList() {
   try {
     packBatchSel.innerHTML = `<option value="">⏳ Đang tải Batch...</option>`;
@@ -1262,75 +1355,32 @@ async function loadActiveBatchList() {
       .select('batch_scrap')
       .eq('status', 'active')
       .order('batch_scrap', { ascending: false });
-
     if (error) throw error;
 
-    if (!data || data.length === 0) {
+    if (!data?.length) {
       packBatchSel.innerHTML = `<option value="">⚠️ Không có batch active.</option>`;
       return;
     }
-
-    // Nếu chỉ có 1 batch thì tự chọn luôn
-    if (data.length === 1) {
-      const batch = data[0].batch_scrap;
-      packBatchSel.innerHTML = `<option value="${batch}" selected>${batch}</option>`;
-    } else {
-      // Nếu nhiều batch thì tạo dropdown
-      packBatchSel.innerHTML =
-        `<option value="">-- Chọn batch (${data.length}) --</option>` +
-        data.map(r => `<option value="${r.batch_scrap}">${r.batch_scrap}</option>`).join('');
-    }
-
-    console.log(`✅ Loaded ${data.length} active batch`);
+    packBatchSel.innerHTML = data.map((r, i) =>
+      `<option value="${r.batch_scrap}" ${i === 0 ? 'selected' : ''}>${r.batch_scrap}</option>`
+    ).join('');
   } catch (err) {
     console.error('❌ Lỗi load batch:', err.message);
     packBatchSel.innerHTML = `<option value="">❌ Lỗi tải batch</option>`;
   }
 }
 
-// Gọi khi mở tool
-loadActiveBatchList();
+/* 🧩 Tải danh sách chờ pack */
 
 
 
 
-// 1️⃣ Tải danh sách Waiting pack
-document.getElementById('btnPackLoad').addEventListener('click', async () => {
-  packMsg.textContent = '⏳ Đang tải danh sách...';
-  try {
-    const { data, error } = await client
-      .from(PACK_TABLE)
-      .select(PACK_FIELDS)
-      .ilike('status', '%waiting pack%'); // flexible chữ hoa/thường
 
-    if (error) throw error;
-
-    if (!data || data.length === 0) {
-      packTbody.innerHTML = `<tr><td colspan="6" class="empty">⚠️ Không có dòng nào Waiting pack.</td></tr>`;
-      packMsg.textContent = 'Không có dữ liệu.';
-      packRows = [];
-      updatePackMeta();
-      return;
-    }
-
-    packRows = data.map((r, i) => ({
-      ...r,
-      seq: i + 1,
-      selected: false
-    }));
-    renderPackTable();
-    packMsg.textContent = `✅ Tải ${packRows.length} dòng thành công.`;
-  } catch (e) {
-    console.error(e);
-    packMsg.textContent = '❌ Lỗi tải dữ liệu: ' + (e.message || e);
-  }
-});
-
-// 2️⃣ Render + chọn dòng
+/* 🧩 Render bảng pack */
 function renderPackTable() {
   packTbody.innerHTML = '';
   if (!packRows.length) {
-    packTbody.innerHTML = `<tr><td colspan="6" class="empty">Không có dữ liệu.</td></tr>`;
+    packTbody.innerHTML = `<tr><td colspan="7" class="empty">Không có dữ liệu.</td></tr>`;
     updatePackMeta();
     return;
   }
@@ -1342,35 +1392,442 @@ function renderPackTable() {
       <td><input type="checkbox" class="pack-check" ${r.selected ? 'checked' : ''}></td>
       <td>${r.form_no ?? ''}</td>
       <td>${r.ItemCode ?? ''}</td>
-      <td>${r.Quantity ?? ''}</td>
+      <td contenteditable="true" class="editable-qty" data-index="${i}">${r.qty_receipt ?? ''}</td>
       <td>${r.status ?? ''}</td>
+      <td>${r.team ?? ''}</td>
     `;
     packTbody.appendChild(tr);
   });
 
-  // Bind event tick chọn
   packTbody.querySelectorAll('.pack-check').forEach((cb, i) => {
-    cb.addEventListener('change', (e) => {
+    cb.addEventListener('change', e => {
       packRows[i].selected = e.target.checked;
       updatePackMeta();
+    });
+  });
+
+  packTbody.querySelectorAll('.editable-qty').forEach(cell => {
+    cell.addEventListener('input', e => {
+      const idx = +e.target.dataset.index;
+      const val = e.target.innerText.trim();
+      packRows[idx].qty_receipt = val === '' ? null : Number(val);
+      e.target.style.background = '#fff8dc';
     });
   });
 
   updatePackMeta();
 }
 
-// 3️⃣ Chọn/Bỏ chọn tất cả
+/* 🧩 Meta hiển thị */
+function updatePackMeta() {
+  packMetaRows.textContent = packRows.length;
+  packMetaSel.textContent = packRows.filter(r => r.selected).length;
+}
+
+
+// 🔍 Lọc danh sách Pack theo Team được chọn
+
+document.getElementById('filterTeamPack').addEventListener('change', (e) => {
+  const selectedTeam = e.target.value.trim();
+
+  if (!selectedTeam) {
+    packRows = [...packRowsAll]; // 🔁 trả về toàn bộ
+    renderPackTable();
+    packStatus.textContent = "👀 Hiển thị toàn bộ danh sách Waiting pack.";
+    return;
+  }
+
+  // 🔍 Lọc dựa trên packRowsAll (dữ liệu gốc)
+  packRows = packRowsAll.filter(r =>
+    String(r.team || '').toLowerCase() === selectedTeam.toLowerCase()
+  );
+
+  renderPackTable();
+  packStatus.textContent = `✅ Lọc ${packRows.length} dòng thuộc team: ${selectedTeam}`;
+});
+
+
+
+/* 🧩 Nút chọn tất cả */
 document.getElementById('btnPackSelectAll').addEventListener('click', () => {
   const allSelected = packRows.every(r => r.selected);
   packRows.forEach(r => (r.selected = !allSelected));
   renderPackTable();
 });
+const palletModeSel = document.getElementById('palletMode');
+const existPalletList = document.getElementById('existPalletList');
 
-// 4️⃣ Cập nhật Meta
-function updatePackMeta() {
-  packMetaRows.textContent = packRows.length;
-  packMetaSel.textContent = packRows.filter(r => r.selected).length;
+/* 🧩 Load danh sách pallet đang có cho tuần hiện tại */
+async function loadExistingPallets(currentWeekTag) {
+  try {
+    existPalletList.innerHTML = `<option value="">⏳ Đang tải...</option>`;
+    const { data, error } = await client
+      .from('summary_pack_log')
+      .select('pallet_id')
+      .ilike('pallet_id', `${currentWeekTag}-%`);
+
+    if (error) throw error;
+
+    if (!data?.length) {
+      existPalletList.innerHTML = `<option value="">⚠️ Không có pallet nào tuần ${currentWeekTag}</option>`;
+      return;
+    }
+
+    // Lấy danh sách duy nhất và sắp theo số thứ tự
+    const unique = [...new Set(data.map(r => r.pallet_id))].sort();
+    existPalletList.innerHTML =
+      `<option value="">-- Chọn pallet có sẵn (${unique.length}) --</option>` +
+      unique.map(p => `<option value="${p}">${p}</option>`).join('');
+  } catch (err) {
+    console.error('❌ Lỗi load pallet:', err.message);
+    existPalletList.innerHTML = `<option value="">❌ Lỗi tải pallet</option>`;
+  }
 }
+
+
+// 🧩 Cập nhật hiển thị Pallet ID mới / có sẵn
+
+document.getElementById('palletMode').addEventListener('change', async () => {
+  const palletMode = palletModeSel.value;
+  const batchScrap = packBatchSel.value.trim();
+  const selectedTeam = document.getElementById('filterTeamPack').value.trim();
+  const preview = document.getElementById('previewPalletID');
+
+  preview.textContent = '';
+
+  if (!batchScrap) {
+    preview.textContent = '⚠️ Chọn Batch trước';
+    preview.style.color = '#dc2626';
+    return;
+  }
+
+  if (!selectedTeam) {
+    preview.textContent = '⚠️ Chọn Team trước';
+    preview.style.color = '#dc2626';
+    return;
+  }
+
+  // ✅ Lấy tuần hiện tại (+7h)
+  const now = new Date();
+  now.setHours(now.getHours() + 7);
+  function getISOWeek(d) {
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  }
+  const weekTag = `W${String(getISOWeek(now)).padStart(2, '0')}`;
+
+  if (palletMode === 'exist') {
+    preview.textContent = '';
+    preview.style.color = '';
+    await loadExistingPallets(weekTag);
+    return;
+  }
+
+  // 🆕 Pallet mới — có Team trong tên nhưng số chạy chung batch
+  try {
+    const palletPrefix = `${weekTag}-${batchScrap}`;
+    
+	
+	// ✅ Lấy pallet cuối từ pack_putaway_logs, không trùng lặp
+const { data, error } = await client
+  .from('pack_putaway_logs')
+  .select('pallet_id')
+  .ilike('pallet_id', `${palletPrefix}-%`);
+
+if (error) throw error;
+
+let nextSeq = 1;
+if (data?.length) {
+  const nums = data
+    .map(r => parseInt(String(r.pallet_id || '').split('-').pop(), 10))
+    .filter(n => Number.isInteger(n))
+    .sort((a, b) => b - a);
+  if (nums.length > 0) nextSeq = nums[0] + 1;
+}
+
+
+    const nextPalletID = `${palletPrefix}-${selectedTeam}-${String(nextSeq).padStart(3, '0')}`;
+
+    preview.textContent = `🆕 ${nextPalletID}`;
+    preview.style.color = '#2563eb';
+  } catch (err) {
+    preview.textContent = '❌ Lỗi tạo pallet';
+    preview.style.color = '#dc2626';
+    console.error('❌ Lỗi khi tạo pallet:', err.message);
+  }
+});
+
+
+
+// 🧠 Gợi ý thêm: nếu user đổi team hoặc batch → cập nhật preview lại
+['filterTeamPack', 'packBatch'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    const mode = palletModeSel.value;
+    if (mode === 'new') {
+      document.getElementById('palletMode').dispatchEvent(new Event('change'));
+    }
+  });
+});
+
+
+/* 🧩 Thực hiện pack — sửa lỗi double insert */
+
+/* 🧩 Thực hiện pack — phiên bản FIX FULL */
+document.getElementById('btnPackAction').addEventListener('click', async () => {
+  const selected = packRows.filter(r => r.selected);
+  const user = getLoginUser() || 'system';
+  const batchScrap = document.getElementById('packBatch').value;
+  const selectedTeam = document.getElementById('filterTeamPack').value.trim();
+
+  if (!selected.length) return alert('⚠️ Vui lòng chọn ít nhất 1 dòng để Pack.');
+  if (!batchScrap) return alert('⚠️ Chưa chọn Batch Scrap.');
+  if (!selectedTeam) return alert('⚠️ Vui lòng chọn Team trước khi Pack.');
+
+  const palletMode = palletModeSel.value;
+  const existPallet = existPalletList.value;
+
+  // 🔹 Tính tuần ISO (có +7h)
+  const now = new Date();
+  now.setHours(now.getHours() + 7);
+  const weekTag = getCurrentWeekTag();
+  const palletPrefix = `${weekTag}-${batchScrap}`;
+
+  let palletBase = `${palletPrefix}-${selectedTeam}-001`;
+
+  // ✅ Nếu chọn pallet có sẵn
+  if (palletMode === 'exist') {
+    if (!existPallet) return alert('⚠️ Vui lòng chọn 1 pallet có sẵn.');
+    palletBase = existPallet;
+  } else {
+    // ✅ Tạo pallet mới theo số lớn nhất trong pack_putaway_logs
+    try {
+      const { data, error } = await client
+        .from('pack_putaway_logs')
+        .select('pallet_id')
+        .ilike('pallet_id', `${palletPrefix}-%`);
+      if (error) throw error;
+
+      let nextSeq = 1;
+      if (data?.length) {
+        const nums = data
+          .map(r => parseInt(String(r.pallet_id || '').split('-').pop(), 10))
+          .filter(n => Number.isInteger(n))
+          .sort((a, b) => b - a);
+        if (nums.length > 0) nextSeq = nums[0] + 1;
+      }
+
+      palletBase = `${palletPrefix}-${selectedTeam}-${String(nextSeq).padStart(3, '0')}`;
+    } catch (err) {
+      console.warn('⚠️ Không lấy được pallet cuối:', err.message);
+    }
+  }
+
+  const pack_time = now.toISOString();
+
+  // 🔹 Chuẩn bị logs ghi pack
+  const logs = selected.map(r => ({
+    id: r.id,
+    pallet_id: palletBase,
+    qty: Number(r.qty_receipt) || 0,
+    pack_time,
+    pack_by: user
+  }));
+
+  try {
+    // ✅ Ghi log chi tiết
+    const { error } = await client.from('pack_putaway_logs').insert(logs);
+    if (error) throw error;
+
+    // ✅ Update list chờ pack
+    packRowsAll = packRowsAll.map(r => {
+      const match = logs.find(l => l.id === r.id);
+      if (!match) return r;
+      const packed = Number(match.qty) || 0;
+      const total = Number(r.qty_receipt) || 0;
+      return packed >= total ? null : { ...r, qty_receipt: total - packed, selected: false };
+    }).filter(Boolean);
+
+    // ✅ Lọc theo team (nếu có)
+    packRows = selectedTeam
+      ? packRowsAll.filter(r => String(r.team || '').toLowerCase() === selectedTeam.toLowerCase())
+      : [...packRowsAll];
+
+    renderPackTable();
+    updatePackMeta();
+
+    packStatus.textContent = `✅ Pack ${logs.length} dòng vào pallet ${palletBase}.`;
+    alert(`✅ Pack thành công ${logs.length} dòng vào pallet ${palletBase}.`);
+
+    // ✅ Ghi nhận pallet mới vào summary_pack_log (để tracking)
+    await client.from('summary_pack_log').insert({
+      pallet_id: palletBase,
+      created_at: new Date().toISOString(),
+      pack_by: user,
+      batch_scrap: batchScrap,
+      week_tag: weekTag
+    });
+
+    // ✅ Cập nhật preview pallet mới kế tiếp
+    const { data } = await client
+      .from('pack_putaway_logs')
+      .select('pallet_id')
+      .ilike('pallet_id', `${palletPrefix}-%`);
+
+    let nextSeq = 1;
+    if (data?.length) {
+      const nums = data
+        .map(r => parseInt(String(r.pallet_id || '').split('-').pop(), 10))
+        .filter(n => Number.isInteger(n))
+        .sort((a, b) => b - a);
+      if (nums.length > 0) nextSeq = nums[0] + 1;
+    }
+
+    const nextPalletID = `${palletPrefix}-${selectedTeam}-${String(nextSeq).padStart(3, '0')}`;
+    const preview = document.getElementById('previewPalletID');
+    preview.textContent = `🆕 ${nextPalletID}`;
+    preview.style.color = '#2563eb';
+
+  } catch (err) {
+    console.error('❌ Lỗi pack:', err);
+    packStatus.textContent = '❌ Lỗi: ' + (err.message || err);
+    alert('❌ Lỗi ghi log pack: ' + (err.message || err));
+  }
+});
+
+
+
+async function generateNewPalletID() {
+  const batchScrap = document.getElementById('packBatch').value;
+  const selectedTeam = document.getElementById('filterTeamPack').value.trim() || 'TEAM';
+  const weekTag = getCurrentWeekTag();
+  const palletPrefix = `${weekTag}-${batchScrap}`;
+
+  let nextSeq = 1;
+  try {
+    const { data, error } = await client
+      .from('pack_putaway_logs')
+      .select('pallet_id')
+      .ilike('pallet_id', `${palletPrefix}-%`);
+
+    if (error) throw error;
+
+    if (data?.length) {
+      const nums = data
+        .map(r => parseInt(String(r.pallet_id || '').split('-').pop(), 10))
+        .filter(n => Number.isInteger(n))
+        .sort((a, b) => b - a);
+      if (nums.length > 0) nextSeq = nums[0] + 1;
+    }
+  } catch (err) {
+    console.warn('⚠️ Không thể lấy số pallet cuối:', err.message);
+  }
+
+  const nextPalletID = `${palletPrefix}-${selectedTeam}-${String(nextSeq).padStart(3, '0')}`;
+  const preview = document.getElementById('previewPalletID');
+  if (preview) {
+    preview.textContent = `🆕 ${nextPalletID}`;
+    preview.style.color = '#2563eb';
+  }
+
+  return nextPalletID;
+}
+
+
+
+
+// ✅ Hàm tính tuần hiện tại (chuẩn ISO, có +7h)
+function getCurrentWeekTag() {
+  const now = new Date();
+  now.setHours(now.getHours() + 7); // VN timezone
+  const date = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  return `W${String(weekNo).padStart(2, '0')}`;
+}
+
+
+
+// Render lại bảng sau khi lọc
+renderPackTable();
+updatePackMeta();
+packStatus.textContent = "♻️ Đã loại bỏ item pack đủ, giữ lại item chưa đủ để pack tiếp.";
+
+
+/* 🧩 Tải danh sách Waiting Pack (thêm mới) */
+async function loadWaitingPack() {
+  packMsg.textContent = "⏳ Đang tải danh sách Waiting Pack...";
+  packTbody.innerHTML = `<tr><td colspan="7" class="empty">⏳ Đang tải...</td></tr>`;
+
+  try {
+    const { data, error } = await client
+      .from(PACK_TABLE)
+      .select(PACK_FIELDS)
+      .ilike('status', '%waiting pack%');
+
+    if (error) throw error;
+
+    if (!data?.length) {
+      packTbody.innerHTML = `<tr><td colspan="7" class="empty">⚠️ Không có dòng nào Waiting pack.</td></tr>`;
+      packMsg.textContent = "Không có dữ liệu.";
+      packRows = [];
+      updatePackMeta();
+      return;
+    }
+
+    // ✅ Chuẩn hóa dữ liệu
+	// ✅ Chuẩn hóa dữ liệu gốc
+packRowsAll = data.map((r, i) => ({
+  ...r,
+  seq: i + 1,
+  selected: false
+}));
+
+// ✅ Sắp xếp ItemCode a→z
+packRowsAll.sort((a, b) =>
+  String(a.ItemCode || '').localeCompare(String(b.ItemCode || ''), 'en', { sensitivity: 'base', numeric: true })
+);
+
+// ✅ Gán bản sao cho hiển thị
+packRows = [...packRowsAll];
+
+renderPackTable();
+packMsg.textContent = `✅ Đã tải ${packRows.length} dòng Waiting pack.`;
+
+
+
+  } catch (err) {
+    console.error("❌ Lỗi loadWaitingPack:", err);
+    packMsg.textContent = `❌ Lỗi tải dữ liệu: ${err.message}`;
+  }
+}
+
+/* 🧩 Gọi tự động khi mở tab hoặc load trang */
+async function initPackingModule() {
+  await Promise.all([loadActiveBatchList(), loadFilterTeamOptions()]);
+  await loadWaitingPack(); // tự động tải danh sách
+  
+  
+  
+  // 🔹 Sau khi load xong, tự động lấy pallet tuần hiện tại
+  const now = new Date();
+  now.setHours(now.getHours() + 7);
+  const weekTag = `W${String(Math.ceil((((new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) - new Date(Date.UTC(now.getFullYear(), 0, 1))) / 86400000) + 1) / 7)).padStart(2, '0')}`;
+  await loadExistingPallets(weekTag);
+  
+}
+
+/* Khi user mở tab “Đóng gói (Pack)” thì auto tải luôn */
+document.querySelector('[data-tab="sheet3"]').addEventListener('click', () => {
+  initPackingModule();
+});
+
+/* Lần đầu mở trang */
+initPackingModule();
 
 
 
